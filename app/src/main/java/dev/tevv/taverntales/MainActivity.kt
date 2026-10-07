@@ -1,48 +1,36 @@
 package dev.tevv.taverntales
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
+import dev.tevv.taverntales.ui.TavernTalesNavHost
 import dev.tevv.taverntales.ui.theme.TavernTalesTheme
 
 class MainActivity : ComponentActivity() {
+
+    private val requestNotifications = registerForActivityResult(ActivityResultContracts.RequestPermission()) {
+        // Playback works either way; without permission the "now playing" notification is just hidden.
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        if (savedInstanceState == null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            requestNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+        val container = (application as TavernTalesApp).container
         setContent {
             TavernTalesTheme {
-                Scaffold { padding -> Welcome(Modifier.padding(padding)) }
+                TavernTalesNavHost(container)
             }
         }
     }
-}
-
-@Composable
-private fun Welcome(modifier: Modifier = Modifier) {
-    Column(
-        modifier = modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Text("Tavern Tales", style = MaterialTheme.typography.displaySmall, color = MaterialTheme.colorScheme.primary)
-        Text("Ambience for your table", style = MaterialTheme.typography.bodyLarge)
-    }
-}
-
-@Preview
-@Composable
-private fun WelcomePreview() {
-    TavernTalesTheme { Welcome() }
 }

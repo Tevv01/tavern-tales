@@ -30,6 +30,15 @@ Tavern Tales: an Android-only app (Kotlin, Jetpack Compose, Material 3) for D&D 
 - `compileSdk = 37` is required by current AndroidX libraries; `targetSdk` is 36.
 - The app is always dark-themed (`ui/theme/Theme.kt`); there is no light scheme by design.
 
+## Architecture
+
+Single-activity Compose app, no DI framework: `TavernTalesApp` creates an `AppContainer` holding process-wide singletons; ViewModels are built in `ui/TavernTalesNavHost.kt` with `viewModel { ... }` initializers that pull from the container. Navigation uses type-safe `@Serializable` routes.
+
+- **Data** (`model/`, `data/`): `Scene` → list of `SoundLayer` (name, `content://` URI, volume, autoPlay, loop). `SceneRepository` keeps all scenes in a `StateFlow` and saves them to `filesDir/scenes.json` (via `SceneCodec`) after a debounce, so callers may update on every slider drag. Pure list/scene edit helpers live in `model/SceneEdits.kt` and are unit-tested. The JSON decoder ignores unknown keys and fills defaults, so new fields need a default value to stay compatible with existing files.
+- **Audio** (`audio/`): `AmbienceMixer` owns one `ExoPlayer` per playing layer, handles fade in/out, and exposes `MixerState` (active scene id, playing layer ids, master volume). It lives in the container, not in the service or an Activity, so playback outlives the UI. Only one scene is active at a time; starting a layer from another scene fades out the current one. Players don't request audio focus (layers must not pause each other). Must be used from the main thread.
+- `AmbienceService` is a `mediaPlayback` foreground service that only keeps the process alive and shows the notification. The mixer starts it when something starts playing and stops it once all voices are released (after fade-outs). Don't stop it earlier: stopping before `startForeground` runs crashes the app.
+- Audio files are never copied: they're picked with `OpenMultipleDocuments` and the app takes a persistable read permission on the URI (`audio/AudioImport.kt`).
+
 ## Workflow
 
 - `main` only receives features that were tested on a device. Develop on `feature/<name>` branches, push them, and merge to `main` only after the user confirms testing.
