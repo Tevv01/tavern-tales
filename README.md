@@ -27,3 +27,12 @@ Requires the Android SDK (installed with Android Studio) and JDK 17+ (Android St
 ```
 
 Or open the folder in Android Studio and press Run.
+
+## Test sounds
+
+`tools/generate_test_sounds.py` synthesizes a set of seamless ambience loops (town crowd, rain, wind, tavern music, hearth fire) and a one-shot church bell into `build/test-sounds/`. They are generated from scratch, so there are no licensing concerns. Requires Python with numpy and scipy.
+
+```sh
+python tools/generate_test_sounds.py
+adb push build/test-sounds/. /sdcard/Download/TavernTales/
+```
