@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-Pocket Bard: an Android-only app (Kotlin, Jetpack Compose, Material 3) for D&D table ambience: scenes of layered looping sounds/music mixed live, with Philips Hue lights synced per scene. Single `:app` module, package `dev.tevv.pocketbard`.
+Tavern Tales: an Android-only app (Kotlin, Jetpack Compose, Material 3) for D&D table ambience: scenes of layered looping sounds/music mixed live, with Philips Hue lights synced per scene. Single `:app` module, package `dev.tevv.taverntales`.
 
 ## Environment (Windows dev machine)
 
@@ -19,7 +19,7 @@ Pocket Bard: an Android-only app (Kotlin, Jetpack Compose, Material 3) for D&D t
 ./gradlew assembleDebug                      # build debug APK
 ./gradlew installDebug                       # install on connected device (USB debugging)
 ./gradlew test                               # all JVM unit tests
-./gradlew :app:testDebugUnitTest --tests "dev.tevv.pocketbard.SomeTest"   # single test class
+./gradlew :app:testDebugUnitTest --tests "dev.tevv.taverntales.SomeTest"   # single test class
 ./gradlew lint
 ```
 
@@ -32,7 +32,7 @@ Pocket Bard: an Android-only app (Kotlin, Jetpack Compose, Material 3) for D&D t
 
 ## Architecture
 
-Single-activity Compose app, no DI framework: `PocketBardApp` creates an `AppContainer` holding process-wide singletons; ViewModels are built in `ui/PocketBardNavHost.kt` with `viewModel { ... }` initializers that pull from the container. Navigation uses type-safe `@Serializable` routes.
+Single-activity Compose app, no DI framework: `TavernTalesApp` creates an `AppContainer` holding process-wide singletons; ViewModels are built in `ui/TavernTalesNavHost.kt` with `viewModel { ... }` initializers that pull from the container. Navigation uses type-safe `@Serializable` routes.
 
 - **Data** (`model/`, `data/`): `Scene` → list of `SoundLayer` (name, `content://` URI, volume, autoPlay, loop). `SceneRepository` keeps all scenes in a `StateFlow` and saves them to `filesDir/scenes.json` (via `SceneCodec`) after a debounce, so callers may update on every slider drag. Pure list/scene edit helpers live in `model/SceneEdits.kt` and are unit-tested. The JSON decoder ignores unknown keys and fills defaults, so new fields need a default value to stay compatible with existing files.
 - **Audio** (`audio/`): `AmbienceMixer` owns one `ExoPlayer` per playing layer, handles fade in/out, and exposes `MixerState` (active scene id, playing layer ids, master volume). It lives in the container, not in the service or an Activity, so playback outlives the UI. Only one scene is active at a time; starting a layer from another scene fades out the current one. Players don't request audio focus (layers must not pause each other). Must be used from the main thread.

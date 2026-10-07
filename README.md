@@ -1,4 +1,4 @@
-# Pocket Bard
+# Tavern Tales
 
 An Android app for running ambience at the D&D table: scenes made of layered sounds and music you toggle and mix live, with Philips Hue lights synced to the scene.
 

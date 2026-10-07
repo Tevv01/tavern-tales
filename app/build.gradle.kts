@@ -5,11 +5,11 @@ plugins {
 }
 
 android {
-    namespace = "dev.tevv.pocketbard"
+    namespace = "dev.tevv.taverntales"
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "dev.tevv.pocketbard"
+        applicationId = "dev.tevv.taverntales"
         minSdk = 26
         targetSdk = 36
         versionCode = 1

@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Pocket Bard</string>
+    <string name="app_name">Tavern Tales</string>
     <string name="notification_channel_playback">Playback</string>
     <string name="stop">Stop</string>
     <plurals name="sounds_playing">

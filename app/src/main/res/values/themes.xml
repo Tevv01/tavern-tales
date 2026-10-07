@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Window theme only; all in-app styling comes from the Compose PocketBardTheme. -->
-    <style name="Theme.PocketBard" parent="android:Theme.Material.NoActionBar">
+    <!-- Window theme only; all in-app styling comes from the Compose TavernTalesTheme. -->
+    <style name="Theme.TavernTales" parent="android:Theme.Material.NoActionBar">
         <item name="android:windowBackground">@color/ic_launcher_background</item>
     </style>
 </resources>
