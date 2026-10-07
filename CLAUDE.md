@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-Pocket Bard: an Android-only app (Kotlin, Jetpack Compose, Material 3) for D&D table ambience: scenes of layered looping sounds/music mixed live, with Philips Hue lights synced per scene. Single `:app` module, package `dev.tevv.pocketbard`.
+Tavern Tales: an Android-only app (Kotlin, Jetpack Compose, Material 3) for D&D table ambience: scenes of layered looping sounds/music mixed live, with Philips Hue lights synced per scene. Single `:app` module, package `dev.tevv.taverntales`.
 
 ## Environment (Windows dev machine)
 
@@ -19,7 +19,7 @@ Pocket Bard: an Android-only app (Kotlin, Jetpack Compose, Material 3) for D&D t
 ./gradlew assembleDebug                      # build debug APK
 ./gradlew installDebug                       # install on connected device (USB debugging)
 ./gradlew test                               # all JVM unit tests
-./gradlew :app:testDebugUnitTest --tests "dev.tevv.pocketbard.SomeTest"   # single test class
+./gradlew :app:testDebugUnitTest --tests "dev.tevv.taverntales.SomeTest"   # single test class
 ./gradlew lint
 ```
 

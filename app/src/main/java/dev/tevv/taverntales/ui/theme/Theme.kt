@@ -1,4 +1,4 @@
-package dev.tevv.pocketbard.ui.theme
+package dev.tevv.taverntales.ui.theme
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
@@ -6,7 +6,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
 // The app is used at the gaming table, often in dim light, so it is always dark.
-private val PocketBardColors = darkColorScheme(
+private val TavernTalesColors = darkColorScheme(
     primary = Color(0xFFE8B85C),
     onPrimary = Color(0xFF2A1E0E),
     primaryContainer = Color(0xFF4A3618),
@@ -27,6 +27,6 @@ private val PocketBardColors = darkColorScheme(
 )
 
 @Composable
-fun PocketBardTheme(content: @Composable () -> Unit) {
-    MaterialTheme(colorScheme = PocketBardColors, content = content)
+fun TavernTalesTheme(content: @Composable () -> Unit) {
+    MaterialTheme(colorScheme = TavernTalesColors, content = content)
 }

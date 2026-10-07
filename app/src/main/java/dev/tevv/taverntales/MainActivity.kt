@@ -1,4 +1,4 @@
-package dev.tevv.pocketbard
+package dev.tevv.taverntales
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -15,14 +15,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
-import dev.tevv.pocketbard.ui.theme.PocketBardTheme
+import dev.tevv.taverntales.ui.theme.TavernTalesTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            PocketBardTheme {
+            TavernTalesTheme {
                 Scaffold { padding -> Welcome(Modifier.padding(padding)) }
             }
         }
@@ -36,7 +36,7 @@ private fun Welcome(modifier: Modifier = Modifier) {
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text("Pocket Bard", style = MaterialTheme.typography.displaySmall, color = MaterialTheme.colorScheme.primary)
+        Text("Tavern Tales", style = MaterialTheme.typography.displaySmall, color = MaterialTheme.colorScheme.primary)
         Text("Ambience for your table", style = MaterialTheme.typography.bodyLarge)
     }
 }
@@ -44,5 +44,5 @@ private fun Welcome(modifier: Modifier = Modifier) {
 @Preview
 @Composable
 private fun WelcomePreview() {
-    PocketBardTheme { Welcome() }
+    TavernTalesTheme { Welcome() }
 }
