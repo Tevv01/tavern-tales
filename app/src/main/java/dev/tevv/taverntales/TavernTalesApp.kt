@@ -3,11 +3,11 @@ package dev.tevv.taverntales
 import android.app.Application
 import android.content.Context
 import dev.tevv.taverntales.audio.AmbienceMixer
-import dev.tevv.taverntales.data.SceneRepository
+import dev.tevv.taverntales.data.BackgroundStore
+import dev.tevv.taverntales.data.LibraryRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import java.io.File
 
 class TavernTalesApp : Application() {
     lateinit var container: AppContainer
@@ -22,6 +22,7 @@ class TavernTalesApp : Application() {
 /** Process-wide singletons. Kept by hand instead of a DI framework while the app is small. */
 class AppContainer(context: Context) {
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-    val scenes = SceneRepository(File(context.filesDir, "scenes.json"), appScope)
+    val library = LibraryRepository(context.filesDir, appScope)
+    val backgrounds = BackgroundStore(context)
     val mixer = AmbienceMixer(context, appScope)
 }

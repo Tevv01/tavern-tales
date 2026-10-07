@@ -18,6 +18,7 @@ import androidx.core.content.ContextCompat
 import dev.tevv.taverntales.MainActivity
 import dev.tevv.taverntales.TavernTalesApp
 import dev.tevv.taverntales.R
+import dev.tevv.taverntales.model.findScene
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.combine
@@ -40,8 +41,8 @@ class AmbienceService : Service() {
                 .build(),
         )
         scope.launch {
-            combine(container.mixer.state, container.scenes.scenes) { state, scenes ->
-                val sceneName = scenes.find { it.id == state.sceneId }?.name
+            combine(container.mixer.state, container.library.library) { state, library ->
+                val sceneName = state.sceneId?.let { library.findScene(it) }?.name
                 buildNotification(sceneName, state.playing.size)
             }.collect(::notify)
         }
@@ -53,7 +54,7 @@ class AmbienceService : Service() {
             return START_NOT_STICKY
         }
         val state = container.mixer.state.value
-        val sceneName = container.scenes.scenes.value.find { it.id == state.sceneId }?.name
+        val sceneName = state.sceneId?.let { container.library.library.value.findScene(it) }?.name
         ServiceCompat.startForeground(
             this,
             NOTIFICATION_ID,

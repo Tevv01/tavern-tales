@@ -1,7 +1,9 @@
 package dev.tevv.taverntales.ui.scene
 
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,55 +11,83 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.automirrored.filled.DriveFileMove
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.GraphicEq
+import androidx.compose.material.icons.filled.HideImage
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
-import androidx.compose.material3.FilledIconToggleButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import dev.tevv.taverntales.audio.importAudioLayer
+import dev.tevv.taverntales.audio.MixerState
+import dev.tevv.taverntales.audio.importAudio
+import dev.tevv.taverntales.model.Scene
+import dev.tevv.taverntales.model.SceneCollection
+import dev.tevv.taverntales.model.SoundEvent
 import dev.tevv.taverntales.model.SoundLayer
+import dev.tevv.taverntales.ui.components.ChoiceDialog
 import dev.tevv.taverntales.ui.components.ConfirmDialog
+import dev.tevv.taverntales.ui.components.SceneArt
 import dev.tevv.taverntales.ui.components.TextInputDialog
+
+private sealed interface SceneDialog {
+    data object RenameScene : SceneDialog
+    data object MoveScene : SceneDialog
+    data object DeleteScene : SceneDialog
+    data class RenameLayer(val layer: SoundLayer) : SceneDialog
+    data class RemoveLayer(val layer: SoundLayer) : SceneDialog
+    data class DeleteEvent(val event: SoundEvent) : SceneDialog
+}
+
+private const val TAB_AMBIENCE = 0
+private const val TAB_EVENTS = 1
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -67,135 +97,275 @@ fun SceneScreen(
     onBack: () -> Unit,
 ) {
     val scene by viewModel.scene.collectAsStateWithLifecycle()
+    val collection by viewModel.collection.collectAsStateWithLifecycle()
+    val collections by viewModel.collections.collectAsStateWithLifecycle()
+    val events by viewModel.events.collectAsStateWithLifecycle()
     val mixer by viewModel.mixerState.collectAsStateWithLifecycle()
     val current = scene ?: run {
-        // Deleted from elsewhere (e.g. another screen); nothing to show.
+        // Deleted (from this screen's menu or elsewhere); nothing to show.
         LaunchedEffect(Unit) { onBack() }
         return
     }
     val isActive = mixer.sceneId == current.id
-    val isPlaying = isActive && mixer.playing.isNotEmpty()
+
+    var tab by rememberSaveable { mutableIntStateOf(TAB_AMBIENCE) }
+    var dialog by remember { mutableStateOf<SceneDialog?>(null) }
+    var editingEventId by rememberSaveable { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(Unit) { viewModel.messages.collect { snackbar.showSnackbar(it) } }
 
     val context = LocalContext.current
-    val pickAudio = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
-        if (uris.isNotEmpty()) viewModel.addLayers(uris.map { importAudioLayer(context, it) })
+    val pickLayerAudio = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+        if (uris.isNotEmpty()) viewModel.addLayers(uris.map { importAudio(context, it) })
     }
-    var renamingScene by remember { mutableStateOf(false) }
-    var renamingLayer by remember { mutableStateOf<SoundLayer?>(null) }
-    var removingLayer by remember { mutableStateOf<SoundLayer?>(null) }
+    val pickEventAudio = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) editingEventId = viewModel.addEvent(importAudio(context, uri))
+    }
+    val replaceEventAudio = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        val id = editingEventId
+        if (uri != null && id != null) {
+            val audio = importAudio(context, uri)
+            viewModel.updateEvent(id) { it.copy(uri = audio.uri) }
+        }
+    }
+    val pickImage = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri != null) viewModel.setBackground(uri)
+    }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(current.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
-                },
-                actions = {
-                    IconButton(onClick = { renamingScene = true }) { Icon(Icons.Default.Edit, contentDescription = "Rename scene") }
-                },
-            )
-        },
-        floatingActionButton = {
-            ExtendedFloatingActionButton(
-                onClick = { pickAudio.launch(arrayOf("audio/*")) },
-                icon = { Icon(Icons.Default.Add, contentDescription = null) },
-                text = { Text("Add sounds") },
-            )
-        },
-        snackbarHost = { SnackbarHost(snackbar) },
-    ) { padding ->
-        LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(padding),
-            contentPadding = PaddingValues(start = 16.dp, top = 8.dp, end = 16.dp, bottom = 96.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            item {
-                SceneControls(
-                    isPlaying = isPlaying,
-                    hasLayers = current.layers.isNotEmpty(),
-                    masterVolume = mixer.masterVolume,
-                    onPlay = viewModel::playScene,
-                    onStop = viewModel::stopAll,
-                    onMasterVolume = viewModel::setMasterVolume,
+    Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+        Backdrop(current)
+        Scaffold(
+            containerColor = Color.Transparent,
+            contentColor = MaterialTheme.colorScheme.onBackground,
+            topBar = {
+                TopAppBar(
+                    title = {},
+                    navigationIcon = {
+                        IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
+                    },
+                    actions = {
+                        SceneMenu(
+                            hasBackground = current.background != null,
+                            canMove = collections.size > 1,
+                            onRename = { dialog = SceneDialog.RenameScene },
+                            onChangeBackground = {
+                                pickImage.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                            },
+                            onRemoveBackground = viewModel::removeBackground,
+                            onMove = { dialog = SceneDialog.MoveScene },
+                            onDelete = { dialog = SceneDialog.DeleteScene },
+                        )
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
                 )
-            }
-            if (current.layers.isEmpty()) {
-                item {
-                    Text(
-                        "Add audio files from your phone (crowd chatter, rain, tavern music...). " +
-                            "OGG or WAV files loop most smoothly.",
-                        textAlign = TextAlign.Center,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.fillMaxWidth().padding(32.dp),
+            },
+            floatingActionButton = {
+                if (tab == TAB_AMBIENCE) {
+                    ExtendedFloatingActionButton(
+                        onClick = { pickLayerAudio.launch(arrayOf("audio/*")) },
+                        icon = { Icon(Icons.Default.Add, contentDescription = null) },
+                        text = { Text("Add sounds") },
                     )
                 }
-            }
-            items(current.layers, key = { it.id }) { layer ->
-                LayerCard(
-                    layer = layer,
-                    isPlaying = isActive && layer.id in mixer.playing,
-                    onToggle = { viewModel.toggleLayer(layer) },
-                    onVolume = { viewModel.setLayerVolume(layer.id, it) },
-                    onRename = { renamingLayer = layer },
-                    onAutoPlay = { viewModel.setAutoPlay(layer.id, it) },
-                    onLoop = { viewModel.setLoop(layer.id, it) },
-                    onRemove = { removingLayer = layer },
-                )
+            },
+            snackbarHost = { SnackbarHost(snackbar) },
+        ) { padding ->
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(3),
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(
+                    start = 16.dp,
+                    end = 16.dp,
+                    top = padding.calculateTopPadding(),
+                    bottom = padding.calculateBottomPadding() + 96.dp,
+                ),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                item(span = { GridItemSpan(maxLineSpan) }) { SceneTitle(current, collection) }
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    SceneControls(
+                        mixer = mixer,
+                        isPlaying = isActive && mixer.playing.isNotEmpty(),
+                        hasLayers = current.layers.isNotEmpty(),
+                        onPlay = viewModel::playScene,
+                        onStop = viewModel::stopAll,
+                        onMasterVolume = viewModel::setMasterVolume,
+                    )
+                }
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    PrimaryTabRow(selectedTabIndex = tab, containerColor = Color.Transparent) {
+                        Tab(
+                            selected = tab == TAB_AMBIENCE,
+                            onClick = { tab = TAB_AMBIENCE },
+                            text = { Text("Ambience") },
+                            icon = { Icon(Icons.Default.GraphicEq, contentDescription = null) },
+                        )
+                        Tab(
+                            selected = tab == TAB_EVENTS,
+                            onClick = { tab = TAB_EVENTS },
+                            text = { Text("Events") },
+                            icon = { Icon(Icons.Default.Bolt, contentDescription = null) },
+                        )
+                    }
+                }
+                if (tab == TAB_AMBIENCE) {
+                    if (current.layers.isEmpty()) {
+                        item(span = { GridItemSpan(maxLineSpan) }) {
+                            Hint("Add audio files from your phone (crowd chatter, rain, tavern music...). OGG or WAV files loop most smoothly.")
+                        }
+                    }
+                    items(current.layers, key = { it.id }, span = { GridItemSpan(maxLineSpan) }) { layer ->
+                        LayerCard(
+                            layer = layer,
+                            isPlaying = isActive && layer.id in mixer.playing,
+                            onToggle = { viewModel.toggleLayer(layer) },
+                            onVolume = { viewModel.setLayerVolume(layer.id, it) },
+                            onRename = { dialog = SceneDialog.RenameLayer(layer) },
+                            onAutoPlay = { viewModel.setAutoPlay(layer.id, it) },
+                            onLoop = { viewModel.setLoop(layer.id, it) },
+                            onRemove = { dialog = SceneDialog.RemoveLayer(layer) },
+                        )
+                    }
+                } else {
+                    items(events, key = { it.id }) { event ->
+                        EventPad(
+                            event = event,
+                            isPlaying = event.id in mixer.events,
+                            onPlay = { viewModel.playEvent(event) },
+                            onEdit = { editingEventId = event.id },
+                        )
+                    }
+                    item(key = "add-event") { AddEventPad(onClick = { pickEventAudio.launch(arrayOf("audio/*")) }) }
+                    item(span = { GridItemSpan(maxLineSpan) }) {
+                        Hint("Tap to play. Long-press a pad to change its name, icon, colour, volume or sound. Events are the same in every scene.")
+                    }
+                }
             }
         }
     }
 
-    if (renamingScene) {
-        TextInputDialog(
+    events.find { it.id == editingEventId }?.let { event ->
+        EventEditorSheet(
+            event = event,
+            onUpdate = { transform -> viewModel.updateEvent(event.id, transform) },
+            onPreview = { viewModel.playEvent(event) },
+            onReplaceSound = { replaceEventAudio.launch(arrayOf("audio/*")) },
+            onDelete = { dialog = SceneDialog.DeleteEvent(event) },
+            onDismiss = { editingEventId = null },
+        )
+    }
+
+    when (val d = dialog) {
+        null -> Unit
+        SceneDialog.RenameScene -> TextInputDialog(
             title = "Rename scene",
             initialValue = current.name,
             confirmLabel = "Rename",
-            onConfirm = { viewModel.renameScene(it); renamingScene = false },
-            onDismiss = { renamingScene = false },
+            onConfirm = { viewModel.renameScene(it); dialog = null },
+            onDismiss = { dialog = null },
         )
-    }
-    renamingLayer?.let { layer ->
-        TextInputDialog(
+        SceneDialog.MoveScene -> ChoiceDialog(
+            title = "Move to collection",
+            options = collections,
+            label = { it.name },
+            selected = collection,
+            onPick = { viewModel.moveScene(it.id); dialog = null },
+            onDismiss = { dialog = null },
+        )
+        SceneDialog.DeleteScene -> ConfirmDialog(
+            title = "Delete \"${current.name}\"?",
+            message = "The scene and its sound list are removed. Your audio files are not deleted.",
+            confirmLabel = "Delete",
+            onConfirm = { dialog = null; viewModel.deleteScene() },
+            onDismiss = { dialog = null },
+        )
+        is SceneDialog.RenameLayer -> TextInputDialog(
             title = "Rename sound",
-            initialValue = layer.name,
+            initialValue = d.layer.name,
             confirmLabel = "Rename",
-            onConfirm = { viewModel.renameLayer(layer.id, it); renamingLayer = null },
-            onDismiss = { renamingLayer = null },
+            onConfirm = { viewModel.renameLayer(d.layer.id, it); dialog = null },
+            onDismiss = { dialog = null },
         )
-    }
-    removingLayer?.let { layer ->
-        ConfirmDialog(
-            title = "Remove \"${layer.name}\"?",
+        is SceneDialog.RemoveLayer -> ConfirmDialog(
+            title = "Remove \"${d.layer.name}\"?",
             message = "It is removed from this scene. The audio file on your phone is not deleted.",
             confirmLabel = "Remove",
-            onConfirm = { viewModel.removeLayer(layer.id); removingLayer = null },
-            onDismiss = { removingLayer = null },
+            onConfirm = { viewModel.removeLayer(d.layer.id); dialog = null },
+            onDismiss = { dialog = null },
+        )
+        is SceneDialog.DeleteEvent -> ConfirmDialog(
+            title = "Delete \"${d.event.name}\"?",
+            message = "The pad is removed from the Events tab in every scene.",
+            confirmLabel = "Delete",
+            onConfirm = {
+                editingEventId = null
+                viewModel.removeEvent(d.event.id)
+                dialog = null
+            },
+            onDismiss = { dialog = null },
+        )
+    }
+}
+
+/** The scene's picture across the top of the screen, fading into the background colour. */
+@Composable
+private fun Backdrop(scene: Scene) {
+    val background = MaterialTheme.colorScheme.background
+    Box(Modifier.fillMaxWidth().height(520.dp)) {
+        SceneArt(scene, Modifier.fillMaxSize(), fallbackIconSize = 160.dp)
+        Box(
+            Modifier.fillMaxSize().background(
+                Brush.verticalGradient(
+                    0f to background.copy(alpha = 0.35f),
+                    0.4f to background.copy(alpha = 0.25f),
+                    0.75f to background.copy(alpha = 0.8f),
+                    1f to background,
+                ),
+            ),
         )
     }
 }
 
 @Composable
+private fun SceneTitle(scene: Scene, collection: SceneCollection?) {
+    Column(Modifier.padding(top = 150.dp, bottom = 4.dp)) {
+        collection?.let {
+            Text(
+                it.name.uppercase(),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+            )
+        }
+        Text(scene.name, style = MaterialTheme.typography.displaySmall, color = Color.White, maxLines = 2, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+@Composable
 private fun SceneControls(
+    mixer: MixerState,
     isPlaying: Boolean,
     hasLayers: Boolean,
-    masterVolume: Float,
     onPlay: () -> Unit,
     onStop: () -> Unit,
     onMasterVolume: (Float) -> Unit,
 ) {
-    Column(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+    Column {
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Button(onClick = onPlay, enabled = hasLayers, modifier = Modifier.weight(1f)) {
                 Icon(Icons.Default.PlayArrow, contentDescription = null)
                 Text("Play scene", Modifier.padding(start = 8.dp))
             }
-            OutlinedButton(onClick = onStop, enabled = isPlaying, modifier = Modifier.weight(1f)) {
+            OutlinedButton(
+                onClick = onStop,
+                enabled = isPlaying || mixer.events.isNotEmpty(),
+                modifier = Modifier.weight(1f),
+            ) {
                 Icon(Icons.Default.Stop, contentDescription = null)
                 Text("Stop all", Modifier.padding(start = 8.dp))
             }
         }
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
             Icon(
                 Icons.AutoMirrored.Filled.VolumeUp,
                 contentDescription = null,
@@ -203,82 +373,65 @@ private fun SceneControls(
                 modifier = Modifier.padding(end = 12.dp),
             )
             Text("Master", style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(end = 12.dp))
-            Slider(value = masterVolume, onValueChange = onMasterVolume, modifier = Modifier.weight(1f))
+            Slider(value = mixer.masterVolume, onValueChange = onMasterVolume, modifier = Modifier.weight(1f))
         }
     }
 }
 
 @Composable
-private fun LayerCard(
-    layer: SoundLayer,
-    isPlaying: Boolean,
-    onToggle: () -> Unit,
-    onVolume: (Float) -> Unit,
+private fun SceneMenu(
+    hasBackground: Boolean,
+    canMove: Boolean,
     onRename: () -> Unit,
-    onAutoPlay: (Boolean) -> Unit,
-    onLoop: (Boolean) -> Unit,
-    onRemove: () -> Unit,
+    onChangeBackground: () -> Unit,
+    onRemoveBackground: () -> Unit,
+    onMove: () -> Unit,
+    onDelete: () -> Unit,
 ) {
-    Card(
-        colors = if (isPlaying) {
-            CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
-        } else {
-            CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
-        },
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(start = 12.dp, top = 8.dp, bottom = 4.dp, end = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            FilledIconToggleButton(checked = isPlaying, onCheckedChange = { onToggle() }) {
-                Icon(
-                    if (isPlaying) Icons.Default.Stop else Icons.Default.PlayArrow,
-                    contentDescription = if (isPlaying) "Stop ${layer.name}" else "Play ${layer.name}",
+    Box {
+        var open by remember { mutableStateOf(false) }
+        IconButton(onClick = { open = true }) { Icon(Icons.Default.MoreVert, contentDescription = "Scene options") }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            DropdownMenuItem(
+                text = { Text("Rename") },
+                leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) },
+                onClick = { open = false; onRename() },
+            )
+            DropdownMenuItem(
+                text = { Text(if (hasBackground) "Change picture" else "Add picture") },
+                leadingIcon = { Icon(Icons.Default.Image, contentDescription = null) },
+                onClick = { open = false; onChangeBackground() },
+            )
+            if (hasBackground) {
+                DropdownMenuItem(
+                    text = { Text("Remove picture") },
+                    leadingIcon = { Icon(Icons.Default.HideImage, contentDescription = null) },
+                    onClick = { open = false; onRemoveBackground() },
                 )
             }
-            Column(Modifier.weight(1f).padding(start = 12.dp)) {
-                Text(layer.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                val tags = listOfNotNull(if (layer.loop) "Loop" else "One-shot", if (layer.autoPlay) "Starts with scene" else null)
-                Text(
-                    tags.joinToString(" · "),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+            if (canMove) {
+                DropdownMenuItem(
+                    text = { Text("Move to collection") },
+                    leadingIcon = { Icon(Icons.AutoMirrored.Filled.DriveFileMove, contentDescription = null) },
+                    onClick = { open = false; onMove() },
                 )
-                Slider(value = layer.volume, onValueChange = onVolume)
             }
-            Box {
-                var menuOpen by remember { mutableStateOf(false) }
-                IconButton(onClick = { menuOpen = true }) { Icon(Icons.Default.MoreVert, contentDescription = "More options") }
-                DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                    DropdownMenuItem(
-                        text = { Text("Rename") },
-                        leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) },
-                        onClick = { menuOpen = false; onRename() },
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Start with scene") },
-                        leadingIcon = { CheckMark(layer.autoPlay) },
-                        onClick = { menuOpen = false; onAutoPlay(!layer.autoPlay) },
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Loop") },
-                        leadingIcon = { CheckMark(layer.loop) },
-                        onClick = { menuOpen = false; onLoop(!layer.loop) },
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Remove") },
-                        leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null) },
-                        onClick = { menuOpen = false; onRemove() },
-                    )
-                }
-            }
+            DropdownMenuItem(
+                text = { Text("Delete scene") },
+                leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null) },
+                onClick = { open = false; onDelete() },
+            )
         }
     }
 }
 
 @Composable
-private fun CheckMark(checked: Boolean) {
-    Box(Modifier.size(24.dp)) {
-        if (checked) Icon(Icons.Default.Check, contentDescription = "On")
-    }
+private fun Hint(text: String) {
+    Text(
+        text,
+        textAlign = TextAlign.Center,
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+    )
 }

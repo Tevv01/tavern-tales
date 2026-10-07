@@ -8,9 +8,10 @@ Early development. `main` holds tested, working builds; new features are develop
 
 ## Features
 
-- **Scenes**: e.g. *Town*, *Forest*, *Dungeon*, each with its own set of sound layers.
-- **Live mixer**: toggle and set the volume of each layer (crowd chatter, rain, wind, tavern music) while the scene plays, including with the screen off. Layers fade in and out; one-shot (non-looping) sounds work for effects like a door slam.
-- **Your own audio**: add sounds from files on the phone. They aren't copied, so keep them where they are. OGG or WAV loops more seamlessly than MP3.
+- **Collections of scenes**: group scenes however you like (per campaign, per region...). The built-in **Essentials** collection has a Town, Tavern, Dungeon, Market, Forest and Cave, each with its own artwork and sounds.
+- **Live mixer**: toggle and set the volume of each layer (crowd chatter, rain, wind, tavern music) while the scene plays, including with the screen off. Layers fade in and out; one-shot (non-looping) sounds work for effects like a church bell.
+- **Events**: a pad of sound effects (fireball, explosion, holy light, thunder, sword clash...) available in every scene. Add your own and change their name, icon, colour, volume and sound.
+- **Your own audio and pictures**: add sounds from files on the phone (they aren't copied, so keep them where they are; OGG or WAV loops more seamlessly than MP3), and give any scene a picture from your gallery.
 
 ## Planned
 
@@ -28,11 +29,14 @@ Requires the Android SDK (installed with Android Studio) and JDK 17+ (Android St
 
 Or open the folder in Android Studio and press Run.
 
-## Test sounds
+## Built-in sounds and artwork
 
-`tools/generate_test_sounds.py` synthesizes a set of seamless ambience loops (town crowd, rain, wind, tavern music, hearth fire) and a one-shot church bell into `build/test-sounds/`. They are generated from scratch, so there are no licensing concerns. Requires Python with numpy and scipy.
+All built-in sounds and scene pictures are synthesized by scripts, not recorded or drawn, so there are no licensing concerns. To regenerate them (Python 3 with the packages in `tools/requirements.txt`):
 
 ```sh
-python tools/generate_test_sounds.py
-adb push build/test-sounds/. /sdcard/Download/TavernTales/
+pip install -r tools/requirements.txt
+python tools/generate_sounds.py        # app/src/main/assets/sounds/*.ogg
+python tools/generate_scene_art.py     # app/src/main/res/drawable-nodpi/bg_*.webp
 ```
+
+The heading font is [Cinzel](https://github.com/NDISCOVER/Cinzel) (SIL Open Font License, see `licenses/`).

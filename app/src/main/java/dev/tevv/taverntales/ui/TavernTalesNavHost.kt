@@ -10,14 +10,14 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import dev.tevv.taverntales.AppContainer
+import dev.tevv.taverntales.ui.home.HomeScreen
+import dev.tevv.taverntales.ui.home.HomeViewModel
 import dev.tevv.taverntales.ui.scene.SceneScreen
 import dev.tevv.taverntales.ui.scene.SceneViewModel
-import dev.tevv.taverntales.ui.scenes.ScenesScreen
-import dev.tevv.taverntales.ui.scenes.ScenesViewModel
 import kotlinx.serialization.Serializable
 
 @Serializable
-private object ScenesRoute
+private object HomeRoute
 
 @Serializable
 private data class SceneRoute(val sceneId: String)
@@ -31,10 +31,10 @@ fun TavernTalesNavHost(container: AppContainer) {
         container.mixer.errors.collect { snackbar.showSnackbar(it) }
     }
 
-    NavHost(navController, startDestination = ScenesRoute) {
-        composable<ScenesRoute> {
-            ScenesScreen(
-                viewModel = viewModel { ScenesViewModel(container.scenes, container.mixer) },
+    NavHost(navController, startDestination = HomeRoute) {
+        composable<HomeRoute> {
+            HomeScreen(
+                viewModel = viewModel { HomeViewModel(container.library, container.mixer, container.backgrounds) },
                 snackbar = snackbar,
                 onOpenScene = { navController.navigate(SceneRoute(it)) },
             )
@@ -42,9 +42,9 @@ fun TavernTalesNavHost(container: AppContainer) {
         composable<SceneRoute> { entry ->
             val sceneId = entry.toRoute<SceneRoute>().sceneId
             SceneScreen(
-                viewModel = viewModel { SceneViewModel(sceneId, container.scenes, container.mixer) },
+                viewModel = viewModel { SceneViewModel(sceneId, container.library, container.mixer, container.backgrounds) },
                 snackbar = snackbar,
-                onBack = { navController.popBackStack(ScenesRoute, inclusive = false) },
+                onBack = { navController.popBackStack(HomeRoute, inclusive = false) },
             )
         }
     }
