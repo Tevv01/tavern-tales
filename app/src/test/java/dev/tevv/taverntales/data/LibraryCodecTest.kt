@@ -50,7 +50,8 @@ class LibraryCodecTest {
             }
         """.trimIndent()
         val library = LibraryCodec.decode(json)
-        assertEquals(SoundLayer(id = "a", name = "Crowd", uri = "content://a"), library.collections.single().scenes.single().layers.single())
+        val mine = library.collections.single { it.id == "c" }
+        assertEquals(SoundLayer(id = "a", name = "Crowd", uri = "content://a"), mine.scenes.single().layers.single())
         assertEquals(SoundEvent(id = "e", name = "Boom", uri = "content://boom"), library.events.single())
     }
 
@@ -61,9 +62,9 @@ class LibraryCodecTest {
         """.trimIndent()
         val library = LibraryCodec.decode(v1)
         val defaults = DefaultLibrary.create()
-        assertEquals(defaults.collections.first(), library.collections.first())
-        assertEquals("My scenes", library.collections[1].name)
-        assertEquals(listOf(Scene(id = "s", name = "My town")), library.collections[1].scenes)
+        assertEquals(defaults.collections, library.collections.dropLast(1))
+        assertEquals("My scenes", library.collections.last().name)
+        assertEquals(listOf(Scene(id = "s", name = "My town")), library.collections.last().scenes)
         assertEquals(defaults.events, library.events)
     }
 
@@ -75,7 +76,7 @@ class LibraryCodecTest {
               { "id": "default-town", "name": "Town", "lights": { "id": "hue-1", "name": "Relax" } },
               { "id": "mine", "name": "Mine" } ] } ] }
         """.trimIndent()
-        val scenes = LibraryCodec.decode(v2).collections.single().scenes
+        val scenes = LibraryCodec.decode(v2).collections.single { it.id == "default" }.scenes
         assertEquals(DefaultLibrary.lighting["tavern"], scenes[0].lighting)
         assertEquals(null, scenes[1].lighting) // user already linked a Hue scene
         assertEquals(null, scenes[2].lighting) // not a built-in scene
@@ -88,7 +89,7 @@ class LibraryCodecTest {
               { "id": "default-cave", "name": "Cave", "lighting": { "slots": [ { "color": "#112233" } ], "brightness": 0.9 } },
               { "id": "mine", "name": "Mine", "lighting": { "slots": [ { "color": "#112233" } ], "brightness": 0.9 } } ] } ] }
         """.trimIndent()
-        val scenes = LibraryCodec.decode(v3).collections.single().scenes
+        val scenes = LibraryCodec.decode(v3).collections.single { it.id == "default" }.scenes
         val cave = scenes[0].lighting!!
         assertEquals(DefaultLibrary.lighting.getValue("cave").motion, cave.motion)
         assertEquals("#112233", cave.slots.single().color) // the user's edits survive
@@ -115,5 +116,23 @@ class LibraryCodecTest {
     @Test
     fun decode_emptyVersion1GivesJustTheDefaults() {
         assertEquals(DefaultLibrary.create(), LibraryCodec.decode("""{ "version": 1, "scenes": [] }"""))
+    }
+
+    @Test
+    fun decode_version5AddsTheAdventuresCollectionOnce() {
+        val v5 = """
+            { "version": 5, "events": [], "collections": [ { "id": "default", "name": "Essentials", "scenes": [] } ] }
+        """
+        val migrated = LibraryCodec.decode(v5)
+        assertEquals(listOf("default", DefaultLibrary.ADVENTURES_ID), migrated.collections.map { it.id })
+        assertEquals(DefaultLibrary.adventures(), migrated.collections.last())
+        // Saved again as the current version: decoding doesn't add it a second time.
+        assertEquals(migrated, LibraryCodec.decode(LibraryCodec.encode(migrated)))
+    }
+
+    @Test
+    fun decode_currentVersionWithoutAdventuresKeepsItDeleted() {
+        val deleted = DefaultLibrary.create().let { it.copy(collections = it.collections.filter { c -> c.id != DefaultLibrary.ADVENTURES_ID }) }
+        assertEquals(deleted, LibraryCodec.decode(LibraryCodec.encode(deleted)))
     }
 }

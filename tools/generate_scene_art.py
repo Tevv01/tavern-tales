@@ -511,12 +511,231 @@ def app_background(out):
     c.save(out / 'bg_app.webp')
 
 
+# ------------------------------------------------------------------------------- adventures pack
+
+def ship(out):
+    """Night at sea: a ship under sail on moonlit water."""
+    c = Canvas()
+    horizon = H * 0.5
+    c.gradient([(0, '#04071a'), (0.3, '#121e44'), (0.5, '#2e4672'), (0.5001, '#0d1a33'), (0.75, '#060d1c'), (1, '#02040a')])
+    stars(c, 140, horizon * 0.8)
+    moon_x, moon_y = 520, 250
+    c.glow(moon_x, moon_y, 220, '#9fb8ff', 0.25)
+    c.ellipse((moon_x - 44, moon_y - 44, moon_x + 44, moon_y + 44), '#f2f0e0')
+    for _ in range(7):  # thin clouds drifting across
+        x, y, w = rng.uniform(-100, W), rng.uniform(80, horizon - 120), rng.uniform(180, 380)
+        c.ellipse((x, y, x + w, y + rng.uniform(18, 40)), '#7a8ab0', alpha=0.18, blur=14)
+    for i in range(60):  # moonlight on the water
+        y = horizon + 6 + i ** 1.35 * 2.2
+        half = 10 + i * 2.6 + rng.uniform(-8, 8)
+        x = moon_x + rng.normal(0, 6 + i * 0.6)
+        c.rect((x - half, y, x + half, y + 2 + i * 0.04), '#cfd8f0', alpha=0.55 * (1 - i / 60) ** 1.5)
+    for i in range(80):  # wave crests
+        y = horizon + rng.uniform(8, H - horizon)
+        x, w = rng.uniform(-40, W), rng.uniform(30, 120) * (0.4 + (y - horizon) / (H - horizon))
+        c.rect((x, y, x + w, y + 1.5), '#3a5a8a', alpha=0.35)
+    # the ship: hull, masts, sails, rigging, a lantern at the stern
+    hull_y, x0, x1 = horizon + 40, 150, 520
+    c.poly([(x0 - 30, hull_y - 30), (x1 + 50, hull_y - 44), (x1 + 20, hull_y + 20), (x0 + 10, hull_y + 26)], '#07090f')
+    c.rect((x0 - 20, hull_y - 62, x0 + 60, hull_y - 28), '#07090f')  # sterncastle
+    sail = mix('#141c30', '#222c48', 0.4)
+    for mx, top, width in ((260, horizon - 330, 120), (400, horizon - 280, 105)):
+        c.rect((mx - 4, top, mx + 4, hull_y - 30), '#05070c')
+        for k, (ty, by) in enumerate(((top + 30, top + 130), (top + 145, top + 250))):
+            w = width * (0.8 + k * 0.2)
+            c.poly([(mx - w, ty), (mx + w, ty), (mx + w * 0.95 + 14, by), (mx - w * 0.95 + 14, by)], sail)
+        c.poly([(mx, top - 6), (mx + 46, top + 6), (mx, top + 16)], '#7a1e1e')  # pennant
+    c.poly([(x1 + 40, hull_y - 40), (x1 + 150, hull_y - 120), (x1 + 154, hull_y - 116), (x1 + 46, hull_y - 34)], '#05070c')  # bowsprit
+    c.poly([(400, horizon - 270), (x1 + 150, hull_y - 120), (405, hull_y - 120)], sail, alpha=0.85)  # jib
+    for (ax, ay), (bx, by) in (((260, horizon - 330), (x0 - 20, hull_y - 62)), ((260, horizon - 330), (400, horizon - 280)),
+                               ((400, horizon - 280), (x1 + 150, hull_y - 120))):
+        c.poly([(ax, ay), (bx, by), (bx + 1.5, by + 1.5), (ax + 1.5, ay + 1.5)], '#05070c')
+    c.glow(x0 + 10, hull_y - 70, 40, '#ffb054', 0.6)
+    c.ellipse((x0 + 4, hull_y - 78, x0 + 16, hull_y - 64), '#ffd890')
+    for _ in range(14):  # lantern light dancing on the water
+        y = hull_y + rng.uniform(30, 160)
+        left = x0 + rng.normal(0, 30)
+        c.rect((left, y, left + abs(rng.normal(60, 20)), y + 2), '#ffb054', alpha=0.2)
+    c.poly([(-20, H), (-20, H * 0.82), (200, H * 0.79), (420, H * 0.84), (W + 20, H * 0.8), (W + 20, H)], '#02050c')  # near swell
+    c.grain(0.02)
+    c.vignette(0.55)
+    c.save(out / 'bg_ship.webp')
+
+
+def swamp(out):
+    """A marsh at dusk: dead trees in fog, still water, will-o-the-wisps."""
+    c = Canvas()
+    water = H * 0.62
+    c.gradient([(0, '#0b1610'), (0.32, '#26361f'), (0.52, '#6a7a40'), (0.62, '#26331c'), (0.63, '#121a0e'), (1, '#050804')])
+    c.glow(W * 0.45, water - 40, 320, '#c8d070', 0.25)
+    for layer, (base, color, size, count) in enumerate([
+        (water - 10, mix('#6a7a40', '#3a4a2a', 0.4), 230, 7),
+        (water + 5, mix('#3a4a2a', '#141c10', 0.5), 340, 5),
+    ]):
+        for _ in range(count):
+            x, h = rng.uniform(-30, W + 30), size * rng.uniform(0.7, 1.2)
+            lean = rng.normal(0, 18)
+            c.poly([(x - 12, base), (x + lean - 4, base - h), (x + lean + 4, base - h), (x + 12, base)], color)
+            for _ in range(5):  # crooked branches
+                by = base - h * rng.uniform(0.45, 0.95)
+                bx = x + lean * (base - by) / h
+                dx, dy = rng.choice([-1, 1]) * rng.uniform(40, 110), -rng.uniform(10, 60)
+                c.poly([(bx, by), (bx + dx, by + dy), (bx + dx, by + dy + 4), (bx, by + 6)], color)
+                for _ in range(3):  # hanging moss
+                    mx = bx + dx * rng.uniform(0.2, 1.0)
+                    my = by + dy * rng.uniform(0.2, 1.0)
+                    c.rect((mx, my, mx + 2, my + rng.uniform(20, 70)), color, alpha=0.7)
+        c.ellipse((-200, base - 70, W + 200, base + 30), '#b8c8a0', alpha=0.2 - layer * 0.06, blur=40)  # fog
+    for i in range(30):  # reflections of the glow
+        y = water + 4 + i * 7
+        c.rect((rng.uniform(140, 300), y, rng.uniform(380, 580), y + 2), '#a8b860', alpha=0.18 * (1 - i / 30))
+    for _ in range(40):  # reeds
+        x, h = rng.uniform(-10, W + 10), rng.uniform(40, 150)
+        base = H * rng.uniform(0.8, 0.98)
+        c.poly([(x - 2, base), (x + rng.normal(0, 8), base - h), (x + 2, base)], '#040703')
+    for x, y, color in ((180, water + 60, '#c8ff6a'), (520, water + 20, '#9be8ff'), (430, water + 150, '#c8ff6a')):
+        c.glow(x, y, 4, '#ffffff', 1.0)
+        c.glow(x, y, 26, color, 0.45)
+    c.grain(0.025)
+    c.vignette(0.55)
+    c.save(out / 'bg_swamp.webp')
+
+
+def castle(out):
+    """A great hall: stone walls, tall windows, red banners, torches and a chandelier."""
+    c = Canvas()
+    c.gradient([(0, '#120d10'), (0.4, '#251c1e'), (1, '#0c0808')])
+    stone = fbm(5, 6, seed=21)
+    c.shade(0.75 + 0.4 * stone)
+    for row in range(0, int(H * 0.72), 44):  # mortar lines
+        c.rect((0, row, W, row + 2), '#0a0607', alpha=0.4)
+        for col in range((row // 44) % 2 * 45, W, 90):
+            c.rect((col, row, col + 2, row + 44), '#0a0607', alpha=0.35)
+    for wx in (150, 360, 570):  # arched windows with moonlit glass
+        top, bottom, half = 140, 520, 52
+        c.rect((wx - half, top + half, wx + half, bottom), '#2c3e6a')
+        c.ellipse((wx - half, top, wx + half, top + 2 * half), '#2c3e6a')
+        c.glow(wx, (top + bottom) / 2, 120, '#6a8ac8', 0.18)
+        c.rect((wx - 2, top + 10, wx + 2, bottom), '#0c0a10')
+        c.rect((wx - half, (top + bottom) / 2, wx + half, (top + bottom) / 2 + 4), '#0c0a10')
+    for bx in (255, 465):  # banners between the windows
+        c.poly([(bx - 34, 110), (bx + 34, 110), (bx + 34, 520), (bx, 470), (bx - 34, 520)], '#8a1418')
+        c.rect((bx - 34, 110, bx + 34, 118), '#d8a040')
+        c.ellipse((bx - 16, 240, bx + 16, 272), '#d8a040', alpha=0.8)
+    for px in (40, 680):  # pillars with torches
+        c.rect((px - 40, 0, px + 40, H), '#0e0a0b')
+        c.rect((px - 6, 560, px + 6, 620), '#2a1a10')
+        c.poly([(px - 12, 560), (px + rng.normal(0, 3), 515), (px + 12, 560)], '#ffb040', blur=3)
+        c.glow(px, 545, 120, '#ff8a2b', 0.45)
+    cx, cy = W / 2, 120  # chandelier
+    c.rect((cx - 2, 0, cx + 2, cy), '#0a0707')
+    for i in range(9):
+        a = i / 9 * 2 * math.pi
+        x, y = cx + math.cos(a) * 120, cy + math.sin(a) * 26
+        c.glow(x, y - 8, 22, '#ffc070', 0.5)
+        c.ellipse((x - 3, y - 12, x + 3, y - 4), '#ffe0a0')
+    ring = Canvas.mask(lambda d: d.ellipse((cx - 122, cy - 4, cx + 122, cy + 28), outline=255, width=5))
+    c.paint(ring, '#0a0707')
+    for i in range(4):  # chains from the ring up to the ceiling rope
+        a = i / 4 * 2 * math.pi + 0.4
+        x, y = cx + math.cos(a) * 120, cy + 12 + math.sin(a) * 14
+        c.poly([(cx - 1, 30), (x, y), (x + 1.5, y), (cx + 1, 30)], '#0a0707')
+    c.rect((0, H * 0.72, W, H), '#120c0b')  # floor and the long table
+    c.poly([(150, H * 0.76), (570, H * 0.76), (640, H * 0.84), (80, H * 0.84)], '#2a1a12')
+    for i in range(7):
+        x = 170 + i * 64
+        c.glow(x, H * 0.75, 30, '#ffb050', 0.35)
+        c.rect((x - 3, H * 0.75 - 12, x + 3, H * 0.76), '#e8d8b0')
+    c.grain(0.02)
+    c.vignette(0.6)
+    c.save(out / 'bg_castle.webp')
+
+
+def temple(out):
+    """A candle-lit sanctum: columns, a great statue in a shaft of light, incense smoke."""
+    c = Canvas()
+    c.gradient([(0, '#120c06'), (0.45, '#3a2810'), (1, '#0c0804')])
+    shaft = Canvas.mask(lambda d: d.polygon([(300, -10), (420, -10), (520, H * 0.72), (200, H * 0.72)], fill=255), 40)
+    c.a += rgb('#ffe2a0') * (shaft * 0.22)[..., None]
+    sx, base = W / 2, H * 0.62
+    sy = base - 330  # sun emblem on the back wall, lit by the shaft
+    c.glow(sx, sy, 190, '#ffd070', 0.35)
+    for k in range(16):  # rays, long and short in turn
+        a = k / 16 * 2 * math.pi
+        r0, r1, w = 95, 175 if k % 2 == 0 else 140, 0.07
+        c.poly([(sx + math.cos(a - w) * r0, sy + math.sin(a - w) * r0), (sx + math.cos(a) * r1, sy + math.sin(a) * r1),
+                (sx + math.cos(a + w) * r0, sy + math.sin(a + w) * r0)], '#e8b04a', alpha=0.9)
+    c.ellipse((sx - 92, sy - 92, sx + 92, sy + 92), '#e8b04a')
+    c.ellipse((sx - 74, sy - 74, sx + 74, sy + 74), '#7a5018')
+    c.ellipse((sx - 56, sy - 56, sx + 56, sy + 56), '#f0c060')
+    c.glow(sx, sy, 60, '#fff0c0', 0.4)
+    c.poly([(sx - 210, base - 60), (sx + 210, base - 60), (sx + 230, base + 20), (sx - 230, base + 20)], '#241708')  # altar
+    c.rect((sx - 230, base - 70, sx + 230, base - 58), '#3a260e')
+    c.rect((sx - 160, base - 52, sx + 160, base - 44), '#c89a3a', alpha=0.6)
+    for x in (sx - 120, sx + 120):  # two tall altar candles
+        c.rect((x - 7, base - 150, x + 7, base - 70), '#e8d8b8')
+        c.glow(x, base - 162, 30, '#ffc060', 0.7)
+        c.ellipse((x - 4, base - 176, x + 4, base - 154), '#fff0c0')
+    for i, px in enumerate((60, 175, 545, 660)):  # columns
+        w = 46 if i in (0, 3) else 34
+        c.rect((px - w, 0, px + w, H * 0.8), '#160e06')
+        c.rect((px - w - 10, 60, px + w + 10, 84), '#1c1208')
+        c.rect((px - w + 6, 0, px - w + 12, H * 0.8), '#4a3418', alpha=0.4)
+    for row in range(3):  # candles at the statue's feet
+        for i in range(12 - row * 2):
+            x = sx - 220 + row * 30 + i * (440 - row * 60) / (11 - row * 2)
+            y = base + 40 + row * 34 + rng.uniform(-4, 4)
+            h = rng.uniform(14, 30)
+            c.rect((x - 3, y - h, x + 3, y), '#e8d8b8')
+            c.glow(x, y - h - 5, 12, '#ffc060', 0.6)
+            c.ellipse((x - 2, y - h - 10, x + 2, y - h - 2), '#fff0c0')
+    for _ in range(5):  # incense smoke
+        x = rng.uniform(220, 500)
+        pts = [(x + math.sin(t / 30) * 14 + t * 0.15, base - t) for t in range(0, 420, 12)]
+        c.poly(pts + [(px + 6, py) for px, py in reversed(pts)], '#d8c8b0', alpha=0.08, blur=6)
+    c.rect((0, H * 0.8, W, H), '#0e0904')
+    c.grain(0.02)
+    c.vignette(0.55)
+    c.save(out / 'bg_temple.webp')
+
+
+def blizzard(out):
+    """A mountain pass in a snowstorm: grey peaks, snow-laden pines, driving snow."""
+    c = Canvas()
+    c.gradient([(0, '#4a5870'), (0.35, '#7a8aa2'), (0.55, '#b4c2d4'), (0.62, '#d8e2ee'), (1, '#eef3f8')])
+    for i, (base, amp, color, alpha) in enumerate([(H * 0.42, 160, '#8c9cb4', 0.6), (H * 0.5, 120, '#a8b6ca', 0.7),
+                                                     (H * 0.58, 70, '#c4d0de', 0.85)]):
+        c.poly(ridge(base, amp, seed=40 + i), color, alpha=alpha, blur=2)
+        c.ellipse((-200, base - 40, W + 200, base + 60), '#e0e8f2', alpha=0.35, blur=40)  # drifting snow
+    for _ in range(9):  # snow-laden pines
+        x, base, size = rng.uniform(-30, W + 30), H * rng.uniform(0.66, 0.78), rng.uniform(160, 300)
+        tree(c, x, base, size, '#3a4658', 'pine')
+        for t in range(5):  # snow on the branches
+            y = base - size * 0.15 - t * size * 0.17
+            w = size * (0.32 - t * 0.05)
+            c.poly([(x - w * 0.8, y - 4), (x, y - size * 0.24), (x + w * 0.8, y - 4), (x, y - size * 0.1)], '#f2f6fa', alpha=0.85)
+    c.poly(ridge(H * 0.8, 30, seed=48), '#f4f8fb')  # snow ground
+    c.glow(150, H * 0.84, 60, '#ffb060', 0.45)  # a distant campfire
+    c.glow(150, H * 0.84, 12, '#ffe0a0', 0.8)
+    haze = fbm(5, 4, seed=52)
+    c.a = c.a * (1 - 0.25 * haze[..., None]) + rgb('#e8eef6') * (0.25 * haze)[..., None]
+    for _ in range(900):  # driving snow, streaking on the wind
+        x, y = rng.uniform(-60, W + 60), rng.uniform(0, H)
+        length, size = rng.uniform(6, 26), rng.uniform(0.8, 2.2)
+        c.poly([(x, y), (x + length, y + length * 0.35), (x + length, y + length * 0.35 + size), (x, y + size)],
+               '#ffffff', alpha=rng.uniform(0.3, 0.85))
+    c.grain(0.015)
+    c.vignette(0.45)
+    c.save(out / 'bg_blizzard.webp')
+
+
 def main():
     out = Path(sys.argv[1] if len(sys.argv) > 1 else "app/src/main/res/drawable-nodpi")
     out.mkdir(parents=True, exist_ok=True)
     print(f"Writing to {out}/")
     # New pictures go at the end: each one draws from the shared random generator.
-    for fn in (town, tavern, dungeon, market, forest, cave, title, app_background):
+    for fn in (town, tavern, dungeon, market, forest, cave, title, app_background,
+               ship, swamp, castle, temple, blizzard):
         fn(out)
 
 

@@ -17,7 +17,10 @@ import dev.tevv.taverntales.model.SoundLayer
 object DefaultLibrary {
     const val COLLECTION_ID = "default"
 
-    fun create(): Library = Library(collections = listOf(collection()), events = events())
+    /** The second built-in collection, added in library format v6. */
+    const val ADVENTURES_ID = "default-adventures"
+
+    fun create(): Library = Library(collections = listOf(collection(), adventures()), events = events())
 
     fun asset(name: String) = "asset:///sounds/$name.ogg"
 
@@ -39,6 +42,16 @@ object DefaultLibrary {
         "forest" to LightSetup(listOf(LightSlot("#2FA44A"), LightSlot("#FFE7A0"), LightSlot("#86D660")), brightness = 0.6f, motion = 0.35f),
         // Dark blue with glowing crystals.
         "cave" to LightSetup(listOf(LightSlot("#14306E"), LightSlot("#2FD8FF"), LightSlot("#7A3AFF")), brightness = 0.3f, motion = 0.3f),
+        // Night at sea: deep water, moonlit teal and a swinging lantern.
+        "ship" to LightSetup(listOf(LightSlot("#14306E"), LightSlot("#2FA0C0"), LightSlot("#FFB054", "candle")), brightness = 0.4f, motion = 0.55f),
+        // Murky green with sickly marsh light and violet mist.
+        "swamp" to LightSetup(listOf(LightSlot("#2E5A24"), LightSlot("#9AC850"), LightSlot("#5A3A7A")), brightness = 0.3f, motion = 0.3f),
+        // Torch-lit stone hall with red banners.
+        "castle" to LightSetup(listOf(LightSlot("#FFC27A"), LightSlot("#FF8A2B", "fire"), LightSlot("#C0141E")), brightness = 0.6f, motion = 0.3f),
+        // Candlelight and gold, with a touch of violet.
+        "temple" to LightSetup(listOf(LightSlot("#FFE3B8", "candle"), LightSlot("#FFB054"), LightSlot("#8A5AE0")), brightness = 0.45f, motion = 0.2f),
+        // Cold white and ice blue, gusting.
+        "blizzard" to LightSetup(listOf(LightSlot("#DDE8FF"), LightSlot("#8FCBFF"), LightSlot("#F0F4FF")), brightness = 0.7f, motion = 0.55f),
     )
 
     fun collection() = SceneCollection(
@@ -88,6 +101,50 @@ object DefaultLibrary {
                 Layer("Water drips", "water_drips", 0.7f),
                 Layer("Deep drone", "dark_drone", 0.4f),
                 Layer("Underground stream", "stream", 0.35f, autoPlay = false),
+            ),
+        ),
+    )
+
+    fun adventures() = SceneCollection(
+        id = ADVENTURES_ID,
+        name = "Adventures",
+        scenes = listOf(
+            scene(
+                "ship", "Ship at sea",
+                Layer("Waves", "ocean_waves", 0.7f),
+                Layer("Creaking timbers", "ship_creak", 0.55f),
+                Layer("Wind in the sails", "wind", 0.45f),
+                Layer("Seagulls", "seagulls", 0.4f, autoPlay = false),
+                Layer("Storm rain", "rain", 0.6f, autoPlay = false),
+            ),
+            scene(
+                "swamp", "Swamp",
+                Layer("Frogs", "swamp_frogs", 0.7f),
+                Layer("Bubbling mud", "mud_bubbles", 0.5f),
+                Layer("Insects", "crickets", 0.35f),
+                Layer("Dripping water", "water_drips", 0.3f, autoPlay = false),
+                Layer("Rain", "rain", 0.5f, autoPlay = false),
+            ),
+            scene(
+                "castle", "Castle hall",
+                Layer("Great hall", "great_hall", 0.65f),
+                Layer("Hearth fire", "hearth_fire", 0.5f),
+                Layer("Minstrels", "tavern_music", 0.35f, autoPlay = false),
+                Layer("Wind outside", "wind", 0.3f, autoPlay = false),
+            ),
+            scene(
+                "temple", "Temple",
+                Layer("Chanting", "temple_choir", 0.55f),
+                Layer("Temple bell", "temple_bells", 0.6f),
+                Layer("Candles", "torches", 0.3f),
+                Layer("Mountain wind", "wind", 0.3f, autoPlay = false),
+            ),
+            scene(
+                "blizzard", "Blizzard",
+                Layer("Blizzard", "blizzard", 0.75f),
+                Layer("Howling wind", "wind", 0.4f),
+                Layer("Wolves", "wolves", 0.6f, autoPlay = false),
+                Layer("Campfire", "hearth_fire", 0.45f, autoPlay = false),
             ),
         ),
     )

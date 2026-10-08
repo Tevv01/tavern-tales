@@ -7,7 +7,9 @@ An Android app for running ambience at the tabletop RPG table. Each scene layers
 ## Features
 
 **Scenes and collections**
-- Group scenes into collections (per campaign, per region, ...). The built-in **Essentials** collection has a Town, Tavern, Dungeon, Market, Forest and Cave, each with its own artwork, sounds and lighting.
+- Group scenes into collections (per campaign, per region, ...). Two built-in collections come with the app, each scene with its own artwork, sounds and lighting:
+  - **Essentials**: Town, Tavern, Dungeon, Market, Forest and Cave.
+  - **Adventures**: Ship at sea, Swamp, Castle hall, Temple and Blizzard.
 - Give any scene a picture from your gallery, and move scenes between collections.
 - Each collection shows all its scenes at a glance. Tap a collection's name to fold it away (one for D&D, one for a board game night...); folded collections stay folded and show when one of their scenes is playing.
 
@@ -129,6 +131,7 @@ pip install -r tools/requirements.txt
 python tools/fetch_freesound.py --list               # search Freesound; needs an API key in .freesound-key
 python tools/fetch_freesound.py --pick rain=584943   # download a chosen sound into sound-sources/
 python tools/import_sounds.py                        # make seamless, level-matched OGGs + SOUND_CREDITS.md
+python tools/import_sounds.py wolves                 # or only some of them
 ```
 
 `import_sounds.py` also writes the in-app sound credits (`app/src/main/assets/credits/sounds.json`); after changing `tools/sound_sources.json` by hand, `python tools/import_sounds.py --credits-only` refreshes both credit files without touching the audio.

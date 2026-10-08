@@ -17,16 +17,17 @@ import kotlinx.serialization.json.jsonPrimitive
  * Reads and writes `library.json`.
  *
  * Versions: 1 = flat `scenes` list (first release); 2 = collections + events; 3 = built-in scenes
- * come with light setups; 4 = light setups can move; 5 = built-in events flash the lights. Older
+ * come with light setups; 4 = light setups can move; 5 = built-in events flash the lights; 6 = the
+ * built-in Adventures collection. Older
  * files are migrated on read. Bump [CURRENT_VERSION] and add a migration on breaking changes; adding a field
  * with a default value needs neither.
  */
 object LibraryCodec {
-    const val CURRENT_VERSION = 5
+    const val CURRENT_VERSION = 6
 
     @Serializable
     private data class FileV2(
-        val version: Int = CURRENT_VERSION,  // same shape for v2 to v5
+        val version: Int = CURRENT_VERSION,  // same shape for v2 to v6
         val collections: List<SceneCollection> = emptyList(),
         val events: List<SoundEvent> = emptyList(),
     )
@@ -50,9 +51,10 @@ object LibraryCodec {
         val root = json.parseToJsonElement(text).jsonObject
         return when (val version = root["version"]?.jsonPrimitive?.int ?: 1) {
             1 -> migrateV1(json.decodeFromJsonElement<FileV1>(root))
-            2 -> addDefaultFlashes(addDefaultMotion(addDefaultLighting(decodeV2(root))))
-            3 -> addDefaultFlashes(addDefaultMotion(decodeV2(root)))
-            4 -> addDefaultFlashes(decodeV2(root))
+            2 -> addAdventures(addDefaultFlashes(addDefaultMotion(addDefaultLighting(decodeV2(root)))))
+            3 -> addAdventures(addDefaultFlashes(addDefaultMotion(decodeV2(root))))
+            4 -> addAdventures(addDefaultFlashes(decodeV2(root)))
+            5 -> addAdventures(decodeV2(root))
             CURRENT_VERSION -> json.decodeFromJsonElement<FileV2>(root).let { Library(it.collections, it.events) }
             else -> error("Unsupported library version $version")
         }
@@ -74,6 +76,14 @@ object LibraryCodec {
 
     private fun decodeV2(root: JsonObject) =
         json.decodeFromJsonElement<FileV2>(root).let { Library(it.collections, it.events) }
+
+    /** v6 added a second built-in collection; it's added once, so deleting it later sticks. */
+    private fun addAdventures(library: Library): Library =
+        if (library.collections.any { it.id == DefaultLibrary.ADVENTURES_ID }) {
+            library
+        } else {
+            library.copy(collections = library.collections + DefaultLibrary.adventures())
+        }
 
     /** v5 gave the built-in events light flashes. */
     private fun addDefaultFlashes(library: Library): Library = library.copy(
