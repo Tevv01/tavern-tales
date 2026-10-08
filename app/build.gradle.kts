@@ -1,7 +1,21 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
+}
+
+/**
+ * Release signing: `local.properties` (never committed) may point at a keystore.properties file kept
+ * outside the repository, with storeFile, storePassword, keyAlias and keyPassword. Without it,
+ * release builds are produced unsigned.
+ */
+val releaseSigning: Properties? = run {
+    val local = rootProject.file("local.properties").takeIf { it.exists() } ?: return@run null
+    val path = Properties().apply { local.inputStream().use(::load) }.getProperty("taverntales.signing") ?: return@run null
+    val file = file(path).takeIf { it.exists() } ?: return@run null
+    Properties().apply { file.inputStream().use(::load) }
 }
 
 android {
@@ -18,10 +32,36 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        if (releaseSigning != null) {
+            create("release") {
+                storeFile = file(releaseSigning.getProperty("storeFile"))
+                storePassword = releaseSigning.getProperty("storePassword")
+                keyAlias = releaseSigning.getProperty("keyAlias")
+                keyPassword = releaseSigning.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            signingConfig = signingConfigs.findByName("release")
+        }
+        // The release build (shrunk, signed) as dev.tevv.taverntales.releasetest: checks a release on a
+        // phone next to the real app without touching the real app's data. Own name and icon badge.
+        create("releaseTest") {
+            initWith(getByName("release"))
+            applicationIdSuffix = ".releasetest"
+            versionNameSuffix = "-test"
+            matchingFallbacks += "release"
+        }
+        debug {
+            // Development builds install next to the real app instead of replacing it.
+            applicationIdSuffix = ".debug"
+            versionNameSuffix = "-debug"
         }
     }
     compileOptions {

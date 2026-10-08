@@ -35,7 +35,7 @@ import java.io.File
  * app afterwards, deleting its library and Hue pairing. Instead:
  *   ./gradlew installDebug installDebugAndroidTest
  *   adb shell am instrument -w -e class dev.tevv.taverntales.audio.SessionStressTest \
- *       dev.tevv.taverntales.test/androidx.test.runner.AndroidJUnitRunner
+ *       dev.tevv.taverntales.debug.test/androidx.test.runner.AndroidJUnitRunner
  */
 @LargeTest
 @RunWith(AndroidJUnit4::class)

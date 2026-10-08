@@ -1,0 +1,4 @@
+<resources>
+    <!-- Development builds (dev.tevv.taverntales.debug) are labelled so they can't be mistaken for the real app. -->
+    <string name="app_name">Tavern Tales Debug</string>
+</resources>

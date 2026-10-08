@@ -21,6 +21,8 @@ Tavern Tales: an Android-only app (Kotlin, Jetpack Compose, Material 3) for D&D 
 ./gradlew test                               # all JVM unit tests
 ./gradlew :app:testDebugUnitTest --tests "dev.tevv.taverntales.SomeTest"   # single test class
 ./gradlew lint
+./gradlew assembleRelease                    # shrunk, signed release APK (see Build variants)
+./gradlew assembleReleaseTest                # the same release, installable next to the real app
 ```
 
 On-device (instrumented) tests live in `app/src/androidTest`. **Never use `connectedDebugAndroidTest` on the user's phone**: it uninstalls the app when it finishes, wiping the library and Hue pairing (this happened once). Install and run them directly instead, which leaves the app and its data in place:
@@ -28,10 +30,22 @@ On-device (instrumented) tests live in `app/src/androidTest`. **Never use `conne
 ```sh
 ./gradlew installDebug installDebugAndroidTest
 adb shell am instrument -w -e class dev.tevv.taverntales.audio.SessionStressTest \
-    dev.tevv.taverntales.test/androidx.test.runner.AndroidJUnitRunner
+    dev.tevv.taverntales.debug.test/androidx.test.runner.AndroidJUnitRunner
 ```
 
 `SessionStressTest` plays real audio; mute media volume first (`adb shell cmd media_session volume --stream 3 --set 0`) and restore it after. When driving the app over adb, make a backup from the app first if the user's data could be affected.
+
+## Build variants and signing
+
+| Variant | Application id | Label / icon | Notes |
+|---|---|---|---|
+| debug | `dev.tevv.taverntales.debug` | "Tavern Tales Debug", red bug badge | Debuggable (`run-as` works); separate data from the real app |
+| release | `dev.tevv.taverntales` | "Tavern Tales" | R8 shrinking + resource shrinking, signed with the release key |
+| releaseTest | `dev.tevv.taverntales.releasetest` | "Tavern Tales Test", blue check badge | `initWith(release)`; check shrinking problems on a phone without touching the real app |
+
+Variant names and badges come from `app/src/debug/res` and `app/src/releaseTest/res` (strings and a badged adaptive icon). After changes involving reflection or kotlinx.serialization (new `@Serializable` types, navigation routes, backup format), smoke-test a `releaseTest` build on the phone: shrinking problems only show at runtime.
+
+Release signing: `local.properties` (gitignored) holds `taverntales.signing=<path to keystore.properties>`; that file and the keystore live outside the repo in `C:/Users/vetle/.tavern-tales-signing/`. Never copy them into the repo or print the password. Without the property, release builds come out unsigned. Losing the keystore means no future version can update existing installs, so the user keeps a backup of that folder.
 
 ## Build setup notes
 
