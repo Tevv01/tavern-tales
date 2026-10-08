@@ -1,40 +1,100 @@
 # Tavern Tales
 
-An Android app for running ambience at the D&D table: scenes made of layered sounds and music you toggle and mix live, with Philips Hue lights synced to the scene.
+An Android app for running ambience at the tabletop RPG table. Each scene layers sounds and music that you switch on and mix live, with sound-effect pads for dramatic moments and Philips Hue lights that change with the scene.
 
-## Status
-
-Early development. `main` holds tested, working builds; new features are developed on `feature/*` branches and merged after testing on a device.
+**Latest release: [0.2.0](https://github.com/Tevv01/dnd_ambience_app/releases/latest)**. Early development: `main` only holds builds that were tested on a phone.
 
 ## Features
 
-- **Collections of scenes**: group scenes however you like (per campaign, per region...). The built-in **Essentials** collection has a Town, Tavern, Dungeon, Market, Forest and Cave, each with its own artwork and sounds.
-- **Live mixer**: toggle and set the volume of each layer (crowd chatter, rain, wind, tavern music) while the scene plays, including with the screen off. Layers fade in and out; one-shot (non-looping) sounds work for effects like a church bell.
-- **Events**: a pad of sound effects (fireball, explosion, holy light, thunder, sword clash...) available in every scene. Add your own and change their name, icon, colour, volume and sound.
-- **Your own audio and pictures**: add sounds from files on the phone (they aren't copied, so keep them where they are; OGG or WAV loops more seamlessly than MP3), and give any scene a picture from your gallery.
+**Scenes and collections**
+- Group scenes into collections (per campaign, per region, ...). The built-in **Essentials** collection has a Town, Tavern, Dungeon, Market, Forest and Cave, each with its own artwork, sounds and lighting.
+- Give any scene a picture from your gallery, and move scenes between collections.
 
-- **Backup and restore**: save your whole library (scenes, light setups, events, pictures and your own sounds) to one file, and restore it on a new phone or after a reinstall, or add someone else's scenes to yours.
-- **Philips Hue**: connect your Hue Bridge (found automatically on your Wi-Fi) and give each scene its lights: colours, brightness and flicker effects (candle, fire) made in the app, or a scene from the Hue app. The built-in scenes come with lighting already. Playing a scene switches the lights too.
+**Live ambience mixer**
+- Each scene is made of sound layers (crowds, rain, fire, music...) that you switch on and off and mix while it plays. Sounds fade in and out smoothly.
+- Plays on with the screen off, with a "now playing" notification and a Stop button.
+- Add your own audio files. One-shot (non-looping) sounds work for effects like a church bell.
+
+**Events**
+- A pad of sound effects available in every scene: Fireball, Explosion, Holy light, Thunder, Sword clash, Arcane spell, Monster roar and Arrow volley.
+- Add your own, and change each pad's name, icon, colour, volume and sound.
+
+**Philips Hue lighting**
+- Finds your Hue Bridge on the Wi-Fi and pairs with the link button. Reconnects by itself if the bridge gets a new address.
+- Give each scene its lights: colours, brightness, candle and fire flicker on bulbs that support it, and gentle movement while the scene plays. Or link a scene from the Hue app. The built-in scenes come with lighting.
+- Playing a scene switches the lights too; edits show on the lights as you make them.
+
+**Backup and restore**
+- Save your whole library (scenes, light setups, events, pictures and your own sounds) to one file. Restore it on a new phone or after a reinstall, or add a friend's scenes to yours.
+
+## Install
+
+1. Download the `.apk` from the [latest release](https://github.com/Tevv01/dnd_ambience_app/releases/latest) on an Android phone (Android 8 or newer).
+2. Open it. You may need to allow installing apps from your browser or file manager.
+
+Newer releases install over older ones and keep your scenes. The current builds are debug-signed test builds; a future signed or Play Store version will need a reinstall, so make a backup first (**⋮ → Back up library**).
+
+## Getting started
+
+- **Play a scene**: tap the play button on a scene's picture, or open it and tap **Play scene**. Switch individual sounds on and off and adjust their volumes on the **Ambience** tab; the **Events** tab has the sound-effect pads.
+- **Set up Hue lights**: tap the lightbulb on the home screen, connect your bridge and press its link button, then choose the **Room for scene lighting**. Each scene's **Lights** row lets you edit its colours, brightness, flicker and movement.
+- **Back up**: **⋮ → Back up library** on the home screen. Keep the file somewhere safe, such as Google Drive.
+
+## Requirements and limitations
+
+- Android 8.0 or newer. Layouts are designed for phones in portrait.
+- Hue needs a square (v2) Hue Bridge or a Bridge Pro on the same Wi-Fi as the phone. The old round bridge isn't supported, and guest networks that isolate devices block it.
+- About 1.2% battery per hour while playing with the screen off (measured on a Galaxy S24 Ultra). If your phone's battery saver stops playback, set Tavern Tales to **Unrestricted** in its battery settings.
 
 ## Planned
 
 - Events that flash the lights (e.g. orange for a fireball).
+- A signed release build, and a public release.
 
-## Building
+## Development
 
-Requires the Android SDK (installed with Android Studio) and JDK 17+ (Android Studio's bundled JBR works).
+Kotlin, Jetpack Compose and Material 3, Media3/ExoPlayer for audio, OkHttp for the Hue bridge's local API. Requires the Android SDK (installed with Android Studio) and JDK 17 or newer (Android Studio's bundled JBR works).
 
 ```sh
 ./gradlew assembleDebug        # build app/build/outputs/apk/debug/app-debug.apk
-./gradlew installDebug         # build and install on a connected device
+./gradlew installDebug         # build and install on a connected phone
 ./gradlew test                 # unit tests
+./gradlew lint
 ```
 
 Or open the folder in Android Studio and press Run.
 
+### On-device tests
+
+`SessionStressTest` runs two compressed game nights on a real phone and checks that audio players, threads and memory are all released. Install and run it directly. **Don't use `connectedDebugAndroidTest` on a phone with data you care about**: it uninstalls the app afterwards, deleting its library and Hue pairing.
+
+```sh
+./gradlew installDebug installDebugAndroidTest
+adb shell am instrument -w -e class dev.tevv.taverntales.audio.SessionStressTest \
+    dev.tevv.taverntales.test/androidx.test.runner.AndroidJUnitRunner
+```
+
+It plays real audio, so mute the phone first.
+
+### Project layout
+
+| Path | What's there |
+|---|---|
+| `app/src/main/java/dev/tevv/taverntales/model` | Library, collections, scenes, sound layers, events, light setups |
+| `.../data` | Storage (`library.json` with format migrations), built-in content, backup and restore |
+| `.../audio` | The mixer (one player per sound, fades), background playback service, scene launcher |
+| `.../hue` | Hue bridge discovery, pairing, light commands and movement |
+| `.../ui` | Compose screens: home, scene, Hue setup |
+| `app/src/main/assets/sounds`, `res/drawable-nodpi` | Built-in sounds and scene pictures |
+| `tools/` | Scripts that fetch and process the built-in sounds and draw the scene art |
+
+### Workflow
+
+New work happens on `feature/*` branches and is merged into `main` once it has been tested on a phone. Releases are tagged `vX.Y.Z` and published on GitHub with the APK attached.
+
 ## Built-in sounds and artwork
 
-The built-in sounds are CC0 (public domain) field recordings and effects from [Freesound](https://freesound.org); see [SOUND_CREDITS.md](SOUND_CREDITS.md) for each sound's source and author. They are fetched and processed by scripts (Python 3, packages in `tools/requirements.txt`):
+The built-in sounds are CC0 (public domain) field recordings and effects from [Freesound](https://freesound.org); [SOUND_CREDITS.md](SOUND_CREDITS.md) lists each sound's source and author. They are fetched and processed by scripts (Python 3, packages in `tools/requirements.txt`):
 
 ```sh
 pip install -r tools/requirements.txt
@@ -43,6 +103,10 @@ python tools/fetch_freesound.py --pick rain=584943   # download a chosen sound i
 python tools/import_sounds.py                        # make seamless, level-matched OGGs + SOUND_CREDITS.md
 ```
 
-The scene pictures are drawn procedurally by `python tools/generate_scene_art.py`.
+The scene pictures are drawn procedurally with `python tools/generate_scene_art.py`. (`tools/generate_sounds.py` holds the original synthesized sounds; running it would overwrite the recordings.)
 
-The heading font is [Cinzel](https://github.com/NDISCOVER/Cinzel) (SIL Open Font License, see `licenses/`).
+## Credits
+
+- Sounds: see [SOUND_CREDITS.md](SOUND_CREDITS.md).
+- Heading font: [Cinzel](https://github.com/NDISCOVER/Cinzel), SIL Open Font License (see `licenses/`).
+- Philips Hue is a trademark of Signify. Tavern Tales is not affiliated with or endorsed by Signify.
