@@ -22,6 +22,14 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withTimeoutOrNull
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import java.io.IOException
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
@@ -52,6 +60,9 @@ data class FoundBridge(val name: String, val ip: String)
 /**
  * Pairing, discovery and scene recall for one Philips Hue bridge. Process-wide (in the AppContainer);
  * the pairing is stored in `filesDir/hue.json`.
+ *
+ * Every bridge request goes through [withBridge]: if the bridge stops answering at its address (the
+ * router gave it a new one), it is looked for on the network and the request retried there.
  */
 class HueController(context: Context, private val scope: CoroutineScope) {
     private val appContext = context.applicationContext
@@ -61,8 +72,11 @@ class HueController(context: Context, private val scope: CoroutineScope) {
     private val _bridge = MutableStateFlow(load())
     val bridge: StateFlow<HueBridge?> = _bridge.asStateFlow()
 
-    private val _errors = MutableSharedFlow<String>(extraBufferCapacity = 4)
-    val errors: SharedFlow<String> = _errors.asSharedFlow()
+    /** Things worth telling the user about (shown as snackbars): failures, and a bridge found at a new address. */
+    private val _messages = MutableSharedFlow<String>(extraBufferCapacity = 4)
+    val messages: SharedFlow<String> = _messages.asSharedFlow()
+
+    private val relocating = Mutex()
 
     /** Hue bridges advertised on the Wi-Fi (mDNS `_hue._tcp`), as they are found. */
     fun discover(): Flow<FoundBridge> = callbackFlow {
@@ -117,24 +131,18 @@ class HueController(context: Context, private val scope: CoroutineScope) {
     }
 
     /** All scenes on the paired bridge. Throws if none is paired or it can't be reached. */
-    suspend fun scenes(): List<HueSceneRef> {
-        val bridge = _bridge.value ?: throw HueException("No Hue bridge connected")
-        return withBridgeErrors { HueApi(bridge.ip, bridge.certPin).scenes(bridge.appKey) }
-    }
+    suspend fun scenes(): List<HueSceneRef> = withBridge { bridge, api -> api.scenes(bridge.appKey) }
 
     /** Rooms and zones on the bridge, for choosing where light setups go. */
-    suspend fun groups(): List<HueGroup> {
-        val bridge = _bridge.value ?: throw HueException("No Hue bridge connected")
-        return withBridgeErrors { HueApi(bridge.ip, bridge.certPin).groups(bridge.appKey) }
-            .sortedWith(compareBy({ it.type }, { it.name }))
-    }
+    suspend fun groups(): List<HueGroup> =
+        withBridge { bridge, api -> api.groups(bridge.appKey) }.sortedWith(compareBy({ it.type }, { it.name }))
 
     suspend fun setGroup(group: HueGroup) {
         val bridge = _bridge.value ?: return
         save(bridge.copy(group = HueGroupRef(group.id, group.type, group.name)))
     }
 
-    /** Switches the lights to [scene] in the background; failures are reported on [errors]. */
+    /** Switches the lights to [scene] in the background; failures are reported on [messages]. */
     fun recall(scene: HueSceneRef) = launchLightChange("Couldn't set the lights to \"${scene.name}\"") { bridge, api ->
         api.recall(bridge.appKey, scene.id)
     }
@@ -149,11 +157,32 @@ class HueController(context: Context, private val scope: CoroutineScope) {
             ?: throw HueException("the room \"${group.name}\" no longer exists; choose another in the Hue settings")
         val lights = api.lights(bridge.appKey).filter(members::contains)
         if (lights.isEmpty()) throw HueException("there are no lights in \"${group.name}\"")
+        // Each light on its own: one that's switched off at the wall mustn't stop the others.
+        val unresponsive = mutableListOf<HueLight>()
         LightCommands.build(setup, lights).forEach { (lightId, body) ->
-            api.setLight(bridge.appKey, lightId, body.toString())
+            try {
+                api.setLight(bridge.appKey, lightId, body.toString())
+            } catch (e: HueException) {
+                Log.w(TAG, "Light $lightId refused the update: ${e.message}")
+                unresponsive += lights.first { it.id == lightId }
+            }
             delay(LIGHT_COMMAND_GAP_MS)
         }
+        if (unresponsive.size == lights.size) throw HueException("none of the lights in \"${group.name}\" responded")
+        reportUnresponsive(unresponsive)
         if (animate && setup.motion > 0f && setup.brightness > 0f) animate(bridge, api, setup, lights)
+    }
+
+    /** Ids of the lights last reported as not responding, so the same ones aren't reported on every scene change. */
+    private var lastUnresponsive = emptySet<String>()
+
+    private fun reportUnresponsive(lights: List<HueLight>) {
+        val ids = lights.map { it.id }.toSet()
+        if (ids.isNotEmpty() && ids != lastUnresponsive) {
+            val names = lights.joinToString(", ") { it.name.ifBlank { "a light" } }
+            _messages.tryEmit(if (lights.size == 1) "$names didn't respond" else "These lights didn't respond: $names")
+        }
+        lastUnresponsive = ids
     }
 
     /** Stops the drifting started by [apply]; the lights stay as they are. */
@@ -167,7 +196,9 @@ class HueController(context: Context, private val scope: CoroutineScope) {
      * Nudges one light at a time, cycling through the room so each light gets a new target about once
      * per [LightCommands.motionPeriodMs], fading to it over that same period. Runs until cancelled.
      */
-    private suspend fun animate(bridge: HueBridge, api: HueApi, setup: LightSetup, lights: List<HueLight>) {
+    private suspend fun animate(startBridge: HueBridge, startApi: HueApi, setup: LightSetup, lights: List<HueLight>) {
+        var bridge = startBridge
+        var api = startApi
         val ordered = LightCommands.ordered(lights)
         val period = LightCommands.motionPeriodMs(setup.motion)
         val step = (period / ordered.size).coerceAtLeast(MIN_MOTION_STEP_MS)
@@ -185,9 +216,14 @@ class HueController(context: Context, private val scope: CoroutineScope) {
                         } catch (e: CancellationException) {
                             throw e
                         } catch (e: Exception) {
-                            // A missed drift step isn't worth an error message; give up only if the bridge is gone.
+                            // A missed drift step isn't worth a message. After a few in a row the bridge has
+                            // probably moved: look for it, and stop only if it can't be found.
                             Log.w(TAG, "Light motion step failed", e)
-                            if (++failures >= 3) return
+                            if (++failures >= 3) {
+                                bridge = relocate(bridge) ?: return
+                                api = HueApi(bridge.ip, bridge.certPin)
+                                failures = 0
+                            }
                         }
                     }
                     delay(step)
@@ -202,23 +238,67 @@ class HueController(context: Context, private val scope: CoroutineScope) {
 
     /** Runs one light change at a time: starting another scene's lights cancels one still being sent. */
     private fun launchLightChange(failure: String, block: suspend (HueBridge, HueApi) -> Unit) {
-        val bridge = _bridge.value ?: return
+        if (_bridge.value == null) return
         lightJob?.cancel()
         lightJob = scope.launch {
-            runCatching { withBridgeErrors { block(bridge, HueApi(bridge.ip, bridge.certPin)) } }
-                .onFailure { if (it !is CancellationException) _errors.tryEmit("$failure: ${it.message}") }
+            runCatching { withBridge(block) }
+                .onFailure { if (it !is CancellationException) _messages.tryEmit("$failure: ${it.message}") }
         }
     }
 
-    private suspend fun <T> withBridgeErrors(block: suspend () -> T): T = try {
-        block()
-    } catch (e: HueException) {
-        throw e
-    } catch (e: CancellationException) {
-        throw e
-    } catch (e: Exception) {
-        Log.w(TAG, "Bridge request failed", e)
-        throw HueException("the bridge can't be reached (is the phone on the same Wi-Fi?)")
+    /**
+     * Runs [block] against the paired bridge. If the bridge can't be reached (connection refused or
+     * timed out, or something else now answers at its address), it is looked for on the network and
+     * [block] is retried once at its new address.
+     */
+    private suspend fun <T> withBridge(block: suspend (HueBridge, HueApi) -> T): T {
+        val bridge = _bridge.value ?: throw HueException("No Hue bridge connected")
+        try {
+            return block(bridge, HueApi(bridge.ip, bridge.certPin))
+        } catch (e: IOException) {
+            Log.w(TAG, "Bridge at ${bridge.ip} not reachable", e)
+        }
+        val moved = relocate(bridge) ?: throw HueException(UNREACHABLE)
+        return try {
+            block(moved, HueApi(moved.ip, moved.certPin))
+        } catch (e: IOException) {
+            Log.w(TAG, "Bridge at ${moved.ip} not reachable either", e)
+            throw HueException(UNREACHABLE)
+        }
+    }
+
+    /**
+     * Looks for the paired bridge at a new address: first on the Wi-Fi (mDNS), then via Hue's online
+     * discovery service. A candidate only counts if it reports the paired bridge's id over a connection
+     * with the pinned certificate. Saves and returns the bridge at its new address, or null.
+     */
+    private suspend fun relocate(bridge: HueBridge): HueBridge? = relocating.withLock {
+        // Another request may have found it while this one waited for the lock.
+        _bridge.value?.takeIf { it.id == bridge.id && it.ip != bridge.ip }?.let { return@withLock it }
+        val candidates = flow {
+            withTimeoutOrNull(MDNS_SEARCH_MS) { discover().collect { emit(it.ip) } }
+            cloudDiscovery().forEach { (id, ip) -> if (id.equals(bridge.id, ignoreCase = true)) emit(ip) }
+        }
+        val ip = BridgeLocator.locate(bridge.id, bridge.ip, candidates) { candidate ->
+            runCatching { HueApi(candidate, bridge.certPin).config().id }.getOrNull()
+        } ?: return@withLock null
+        Log.i(TAG, "Bridge ${bridge.id} moved from ${bridge.ip} to $ip")
+        val moved = bridge.copy(ip = ip)
+        save(moved)
+        _messages.tryEmit("Found your Hue Bridge at its new address ($ip)")
+        moved
+    }
+
+    /** Bridges Hue's discovery service knows on this network, as id to IP; empty if it can't be reached. */
+    private suspend fun cloudDiscovery(): List<Pair<String, String>> = withContext(Dispatchers.IO) {
+        runCatching {
+            val request = Request.Builder().url(CLOUD_DISCOVERY_URL).header("User-Agent", "TavernTales").build()
+            cloudClient.newCall(request).execute().use { HueParsing.parseDiscovery(Json.parseToJsonElement(it.body.string())) }
+        }.onFailure { Log.w(TAG, "Cloud discovery failed", it) }.getOrDefault(emptyList())
+    }
+
+    private val cloudClient by lazy {
+        OkHttpClient.Builder().connectTimeout(5, TimeUnit.SECONDS).readTimeout(5, TimeUnit.SECONDS).build()
     }
 
     private fun load(): HueBridge? = try {
@@ -270,6 +350,9 @@ class HueController(context: Context, private val scope: CoroutineScope) {
         const val TAG = "HueController"
         /** The bridge handles about 10 light commands per second; stay under that. */
         const val LIGHT_COMMAND_GAP_MS = 110L
+        const val UNREACHABLE = "the bridge can't be reached (is the phone on the same Wi-Fi?)"
+        const val MDNS_SEARCH_MS = 6_000L
+        const val CLOUD_DISCOVERY_URL = "https://discovery.meethue.com/"
         /** Drift steps are much rarer still, so other apps and switches stay responsive. */
         const val MIN_MOTION_STEP_MS = 700L
         const val LIGHT_SETTLE_MS = 1500L
