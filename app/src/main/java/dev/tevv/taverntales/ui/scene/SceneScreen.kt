@@ -9,14 +9,19 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.DriveFileMove
@@ -47,6 +52,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -61,12 +67,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.tevv.taverntales.audio.MixerState
@@ -79,6 +88,7 @@ import dev.tevv.taverntales.ui.components.ChoiceDialog
 import dev.tevv.taverntales.ui.components.ConfirmDialog
 import dev.tevv.taverntales.ui.components.SceneArt
 import dev.tevv.taverntales.ui.components.TextInputDialog
+import dev.tevv.taverntales.ui.components.isWideWindow
 
 private sealed interface SceneDialog {
     data object RenameScene : SceneDialog
@@ -139,8 +149,10 @@ fun SceneScreen(
         if (uri != null) viewModel.setBackground(uri)
     }
 
+    // Tablets and phones in landscape show the sounds and the event pads side by side.
+    val wide = isWideWindow()
     Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-        Backdrop(current)
+        Backdrop(current, fullScreen = wide)
         Scaffold(
             containerColor = Color.Transparent,
             contentColor = MaterialTheme.colorScheme.onBackground,
@@ -167,7 +179,7 @@ fun SceneScreen(
                 )
             },
             floatingActionButton = {
-                if (tab == TAB_AMBIENCE) {
+                if (!wide && tab == TAB_AMBIENCE) {
                     ExtendedFloatingActionButton(
                         onClick = { pickLayerAudio.launch(arrayOf("audio/*")) },
                         icon = { Icon(Icons.Default.Add, contentDescription = null) },
@@ -177,84 +189,126 @@ fun SceneScreen(
             },
             snackbarHost = { SnackbarHost(snackbar) },
         ) { padding ->
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(3),
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(
-                    start = 16.dp,
-                    end = 16.dp,
-                    top = padding.calculateTopPadding(),
-                    bottom = padding.calculateBottomPadding() + 96.dp,
-                ),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                item(span = { GridItemSpan(maxLineSpan) }) { SceneTitle(current, collection) }
-                item(span = { GridItemSpan(maxLineSpan) }) {
-                    SceneControls(
-                        mixer = mixer,
-                        isPlaying = isActive && mixer.playing.isNotEmpty(),
-                        hasLayers = current.layers.isNotEmpty(),
-                        onPlay = viewModel::playScene,
-                        onStop = viewModel::stopAll,
-                        onMasterVolume = viewModel::setMasterVolume,
-                    )
-                }
-                item(span = { GridItemSpan(maxLineSpan) }) {
-                    LightsRow(
-                        lighting = current.lighting,
-                        lights = current.lights,
-                        connected = hueBridge != null,
-                        onEdit = { if (hueBridge == null) onOpenHueSetup() else pickingLights = true },
-                        onApply = viewModel::applyLights,
-                    )
-                }
-                item(span = { GridItemSpan(maxLineSpan) }) {
-                    PrimaryTabRow(selectedTabIndex = tab, containerColor = Color.Transparent) {
-                        Tab(
-                            selected = tab == TAB_AMBIENCE,
-                            onClick = { tab = TAB_AMBIENCE },
-                            text = { Text("Ambience") },
-                            icon = { Icon(Icons.Default.GraphicEq, contentDescription = null) },
-                        )
-                        Tab(
-                            selected = tab == TAB_EVENTS,
-                            onClick = { tab = TAB_EVENTS },
-                            text = { Text("Events") },
-                            icon = { Icon(Icons.Default.Bolt, contentDescription = null) },
-                        )
+            val controls = @Composable {
+                SceneControls(
+                    mixer = mixer,
+                    isPlaying = isActive && mixer.playing.isNotEmpty(),
+                    hasLayers = current.layers.isNotEmpty(),
+                    onPlay = viewModel::playScene,
+                    onStop = viewModel::stopAll,
+                    onMasterVolume = viewModel::setMasterVolume,
+                )
+            }
+            val lightsRow = @Composable {
+                LightsRow(
+                    lighting = current.lighting,
+                    lights = current.lights,
+                    connected = hueBridge != null,
+                    onEdit = { if (hueBridge == null) onOpenHueSetup() else pickingLights = true },
+                    onApply = viewModel::applyLights,
+                )
+            }
+            val layerCard = @Composable { layer: SoundLayer ->
+                LayerCard(
+                    layer = layer,
+                    isPlaying = isActive && layer.id in mixer.playing,
+                    onToggle = { viewModel.toggleLayer(layer) },
+                    onVolume = { viewModel.setLayerVolume(layer.id, it) },
+                    onRename = { dialog = SceneDialog.RenameLayer(layer) },
+                    onAutoPlay = { viewModel.setAutoPlay(layer.id, it) },
+                    onLoop = { viewModel.setLoop(layer.id, it) },
+                    onRemove = { dialog = SceneDialog.RemoveLayer(layer) },
+                )
+            }
+            val eventPad = @Composable { event: SoundEvent ->
+                EventPad(
+                    event = event,
+                    isPlaying = event.id in mixer.events,
+                    onPlay = { viewModel.playEvent(event) },
+                    onEdit = { editingEventId = event.id },
+                )
+            }
+            val addEventPad = @Composable { AddEventPad(onClick = { pickEventAudio.launch(arrayOf("audio/*")) }) }
+
+            if (wide) {
+                Row(
+                    Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(24.dp),
+                ) {
+                    LazyColumn(
+                        Modifier.weight(1.1f).fillMaxHeight(),
+                        contentPadding = PaddingValues(bottom = 24.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        item { SceneTitle(current, collection, topPadding = 0.dp) }
+                        item { controls() }
+                        item { lightsRow() }
+                        item {
+                            PaneHeader(Icons.Default.GraphicEq, "Ambience") {
+                                TextButton(onClick = { pickLayerAudio.launch(arrayOf("audio/*")) }) {
+                                    Icon(Icons.Default.Add, contentDescription = null)
+                                    Text("Add sounds", Modifier.padding(start = 8.dp))
+                                }
+                            }
+                        }
+                        if (current.layers.isEmpty()) item { Hint(LAYERS_HINT) }
+                        items(current.layers, key = { it.id }) { layerCard(it) }
+                    }
+                    LazyVerticalGrid(
+                        columns = GridCells.Adaptive(96.dp),
+                        modifier = Modifier.weight(1f).fillMaxHeight(),
+                        contentPadding = PaddingValues(bottom = 24.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        item(span = { GridItemSpan(maxLineSpan) }) { PaneHeader(Icons.Default.Bolt, "Events") }
+                        items(events, key = { it.id }) { eventPad(it) }
+                        item(key = "add-event") { addEventPad() }
+                        item(span = { GridItemSpan(maxLineSpan) }) { Hint(EVENTS_HINT) }
                     }
                 }
-                if (tab == TAB_AMBIENCE) {
-                    if (current.layers.isEmpty()) {
-                        item(span = { GridItemSpan(maxLineSpan) }) {
-                            Hint("Add audio files from your phone (crowd chatter, rain, tavern music...). OGG or WAV files loop most smoothly.")
+            } else {
+                val layoutDirection = LocalLayoutDirection.current
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(3),
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(
+                        start = padding.calculateStartPadding(layoutDirection) + 16.dp,
+                        end = padding.calculateEndPadding(layoutDirection) + 16.dp,
+                        top = padding.calculateTopPadding(),
+                        bottom = padding.calculateBottomPadding() + 96.dp,
+                    ),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    item(span = { GridItemSpan(maxLineSpan) }) { SceneTitle(current, collection, topPadding = 150.dp) }
+                    item(span = { GridItemSpan(maxLineSpan) }) { controls() }
+                    item(span = { GridItemSpan(maxLineSpan) }) { lightsRow() }
+                    item(span = { GridItemSpan(maxLineSpan) }) {
+                        PrimaryTabRow(selectedTabIndex = tab, containerColor = Color.Transparent) {
+                            Tab(
+                                selected = tab == TAB_AMBIENCE,
+                                onClick = { tab = TAB_AMBIENCE },
+                                text = { Text("Ambience") },
+                                icon = { Icon(Icons.Default.GraphicEq, contentDescription = null) },
+                            )
+                            Tab(
+                                selected = tab == TAB_EVENTS,
+                                onClick = { tab = TAB_EVENTS },
+                                text = { Text("Events") },
+                                icon = { Icon(Icons.Default.Bolt, contentDescription = null) },
+                            )
                         }
                     }
-                    items(current.layers, key = { it.id }, span = { GridItemSpan(maxLineSpan) }) { layer ->
-                        LayerCard(
-                            layer = layer,
-                            isPlaying = isActive && layer.id in mixer.playing,
-                            onToggle = { viewModel.toggleLayer(layer) },
-                            onVolume = { viewModel.setLayerVolume(layer.id, it) },
-                            onRename = { dialog = SceneDialog.RenameLayer(layer) },
-                            onAutoPlay = { viewModel.setAutoPlay(layer.id, it) },
-                            onLoop = { viewModel.setLoop(layer.id, it) },
-                            onRemove = { dialog = SceneDialog.RemoveLayer(layer) },
-                        )
-                    }
-                } else {
-                    items(events, key = { it.id }) { event ->
-                        EventPad(
-                            event = event,
-                            isPlaying = event.id in mixer.events,
-                            onPlay = { viewModel.playEvent(event) },
-                            onEdit = { editingEventId = event.id },
-                        )
-                    }
-                    item(key = "add-event") { AddEventPad(onClick = { pickEventAudio.launch(arrayOf("audio/*")) }) }
-                    item(span = { GridItemSpan(maxLineSpan) }) {
-                        Hint("Tap to play. Long-press a pad to change its name, icon, colour, volume or sound. Events are the same in every scene.")
+                    if (tab == TAB_AMBIENCE) {
+                        if (current.layers.isEmpty()) {
+                            item(span = { GridItemSpan(maxLineSpan) }) { Hint(LAYERS_HINT) }
+                        }
+                        items(current.layers, key = { it.id }, span = { GridItemSpan(maxLineSpan) }) { layerCard(it) }
+                    } else {
+                        items(events, key = { it.id }) { eventPad(it) }
+                        item(key = "add-event") { addEventPad() }
+                        item(span = { GridItemSpan(maxLineSpan) }) { Hint(EVENTS_HINT) }
                     }
                 }
             }
@@ -341,28 +395,55 @@ fun SceneScreen(
     }
 }
 
-/** The scene's picture across the top of the screen, fading into the background colour. */
+/**
+ * The scene's picture: across the top of the screen, fading into the background colour, or with
+ * [fullScreen] (side-by-side panes) filling the screen, dimmed so the panes stay readable.
+ */
 @Composable
-private fun Backdrop(scene: Scene) {
+private fun Backdrop(scene: Scene, fullScreen: Boolean) {
     val background = MaterialTheme.colorScheme.background
-    Box(Modifier.fillMaxWidth().height(520.dp)) {
+    Box(if (fullScreen) Modifier.fillMaxSize() else Modifier.fillMaxWidth().height(520.dp)) {
         SceneArt(scene, Modifier.fillMaxSize(), fallbackIconSize = 160.dp)
         Box(
             Modifier.fillMaxSize().background(
-                Brush.verticalGradient(
-                    0f to background.copy(alpha = 0.35f),
-                    0.4f to background.copy(alpha = 0.25f),
-                    0.75f to background.copy(alpha = 0.8f),
-                    1f to background,
-                ),
+                if (fullScreen) {
+                    Brush.verticalGradient(0f to background.copy(alpha = 0.55f), 1f to background.copy(alpha = 0.85f))
+                } else {
+                    Brush.verticalGradient(
+                        0f to background.copy(alpha = 0.35f),
+                        0.4f to background.copy(alpha = 0.25f),
+                        0.75f to background.copy(alpha = 0.8f),
+                        1f to background,
+                    )
+                },
             ),
         )
     }
 }
 
+/** A pane's title, with an optional action at the end (side-by-side layout). */
 @Composable
-private fun SceneTitle(scene: Scene, collection: SceneCollection?) {
-    Column(Modifier.padding(top = 150.dp, bottom = 4.dp)) {
+private fun PaneHeader(icon: ImageVector, title: String, action: @Composable () -> Unit = {}) {
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
+        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+        Text(
+            title,
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.weight(1f).padding(start = 10.dp).semantics { heading() },
+        )
+        action()
+    }
+}
+
+private const val LAYERS_HINT =
+    "Add audio files from your phone (crowd chatter, rain, tavern music...). OGG or WAV files loop most smoothly."
+private const val EVENTS_HINT =
+    "Tap to play. Long-press a pad to change its name, icon, colour, volume or sound. Events are the same in every scene."
+
+@Composable
+private fun SceneTitle(scene: Scene, collection: SceneCollection?, topPadding: Dp) {
+    Column(Modifier.padding(top = topPadding, bottom = 4.dp)) {
         collection?.let {
             Text(
                 it.name.uppercase(),

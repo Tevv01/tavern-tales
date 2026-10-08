@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MenuBook
@@ -48,6 +49,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.tevv.taverntales.R
 import dev.tevv.taverntales.model.Scene
+import dev.tevv.taverntales.ui.components.isLandscapeWindow
+import dev.tevv.taverntales.ui.components.isWideWindow
 
 /** The title screen the app opens on: the way into the scenes, plus credits, privacy and bug reports. */
 @Composable
@@ -79,48 +82,84 @@ fun MenuScreen(
                 ),
             ),
         )
-        Column(
-            Modifier.fillMaxSize().systemBarsPadding().padding(horizontal = 24.dp, vertical = 16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Spacer(Modifier.height(48.dp))
-            Text(
-                "Tavern Tales",
-                style = MaterialTheme.typography.displayMedium.copy(
-                    shadow = Shadow(color = Color(0xFFFF9A3A).copy(alpha = 0.55f), blurRadius = 28f),
-                ),
-                color = MaterialTheme.colorScheme.primary,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.semantics { heading() },
-            )
-            Text(
-                "Ambience, effects and lights for your table",
-                style = MaterialTheme.typography.bodyLarge,
-                color = Color.White.copy(alpha = 0.8f),
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(top = 8.dp),
-            )
-            Spacer(Modifier.weight(1f))
-
-            if (nowPlaying != null) {
-                NowPlaying(nowPlaying, playingCount, onOpen = { onOpenNowPlaying(nowPlaying) }, onStop = onStop)
-                Spacer(Modifier.height(16.dp))
-            }
-            Button(
-                onClick = onScenes,
-                shape = RoundedCornerShape(20.dp),
-                modifier = Modifier.fillMaxWidth().height(64.dp),
+        if (isWideWindow() && isLandscapeWindow()) {
+            // Landscape: the title on the left, the buttons on the right, both over a dimmed picture.
+            Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.35f)))
+            Row(
+                Modifier.fillMaxSize().systemBarsPadding().padding(horizontal = 32.dp, vertical = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(40.dp),
             ) {
-                Icon(Icons.Default.TheaterComedy, contentDescription = null, modifier = Modifier.size(26.dp))
-                Text("Scenes", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(start = 12.dp))
+                Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) { Title() }
+                Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                    MenuButtons(nowPlaying, playingCount, onScenes, onCredits, onPrivacy, onReportBug, onOpenNowPlaying, onStop)
+                }
             }
-            Spacer(Modifier.height(12.dp))
-            // Equal heights, also when large text wraps one label onto two lines.
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Max)) {
-                MenuTile(Icons.AutoMirrored.Filled.MenuBook, "Credits", onCredits, Modifier.weight(1f).fillMaxHeight())
-                MenuTile(Icons.Default.PrivacyTip, "Privacy", onPrivacy, Modifier.weight(1f).fillMaxHeight())
-                MenuTile(Icons.Default.BugReport, "Report a bug", onReportBug, Modifier.weight(1f).fillMaxHeight())
+        } else {
+            Column(
+                Modifier.fillMaxSize().systemBarsPadding().padding(horizontal = 24.dp, vertical = 16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Spacer(Modifier.height(48.dp))
+                Title()
+                Spacer(Modifier.weight(1f))
+                MenuButtons(nowPlaying, playingCount, onScenes, onCredits, onPrivacy, onReportBug, onOpenNowPlaying, onStop)
             }
+        }
+    }
+}
+
+@Composable
+private fun Title() {
+    Text(
+        "Tavern Tales",
+        style = MaterialTheme.typography.displayMedium.copy(
+            shadow = Shadow(color = Color(0xFFFF9A3A).copy(alpha = 0.55f), blurRadius = 28f),
+        ),
+        color = MaterialTheme.colorScheme.primary,
+        textAlign = TextAlign.Center,
+        modifier = Modifier.semantics { heading() },
+    )
+    Text(
+        "Ambience, effects and lights for your table",
+        style = MaterialTheme.typography.bodyLarge,
+        color = Color.White.copy(alpha = 0.8f),
+        textAlign = TextAlign.Center,
+        modifier = Modifier.padding(top = 8.dp),
+    )
+}
+
+/** The now-playing card and the buttons; never wider than a phone, so they don't stretch on tablets. */
+@Composable
+private fun MenuButtons(
+    nowPlaying: Scene?,
+    playingCount: Int,
+    onScenes: () -> Unit,
+    onCredits: () -> Unit,
+    onPrivacy: () -> Unit,
+    onReportBug: () -> Unit,
+    onOpenNowPlaying: (Scene) -> Unit,
+    onStop: () -> Unit,
+) {
+    Column(Modifier.widthIn(max = 480.dp)) {
+        if (nowPlaying != null) {
+            NowPlaying(nowPlaying, playingCount, onOpen = { onOpenNowPlaying(nowPlaying) }, onStop = onStop)
+            Spacer(Modifier.height(16.dp))
+        }
+        Button(
+            onClick = onScenes,
+            shape = RoundedCornerShape(20.dp),
+            modifier = Modifier.fillMaxWidth().height(64.dp),
+        ) {
+            Icon(Icons.Default.TheaterComedy, contentDescription = null, modifier = Modifier.size(26.dp))
+            Text("Scenes", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(start = 12.dp))
+        }
+        Spacer(Modifier.height(12.dp))
+        // Equal heights, also when large text wraps one label onto two lines.
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Max)) {
+            MenuTile(Icons.AutoMirrored.Filled.MenuBook, "Credits", onCredits, Modifier.weight(1f).fillMaxHeight())
+            MenuTile(Icons.Default.PrivacyTip, "Privacy", onPrivacy, Modifier.weight(1f).fillMaxHeight())
+            MenuTile(Icons.Default.BugReport, "Report a bug", onReportBug, Modifier.weight(1f).fillMaxHeight())
         }
     }
 }

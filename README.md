@@ -49,7 +49,7 @@ From 0.2.1 on, releases are signed and install over each other, keeping your sce
 
 ## Requirements and limitations
 
-- Android 8.0 or newer. Layouts are designed for phones in portrait.
+- Android 8.0 or newer. Works on phones and tablets, upright or sideways. On a tablet or a phone turned sideways, a scene shows its sounds and the event pads side by side.
 - Works with TalkBack (every button, slider and colour choice is named) and with Android's largest font sizes.
 - Hue needs a square (v2) Hue Bridge or a Bridge Pro on the same Wi-Fi as the phone. The old round bridge isn't supported, and guest networks that isolate devices block it.
 - About 1.2% battery per hour while playing with the screen off (measured on a Galaxy S24 Ultra). If your phone's battery saver stops playback, set Tavern Tales to **Unrestricted** in its battery settings.
