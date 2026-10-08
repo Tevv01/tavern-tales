@@ -33,7 +33,6 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
@@ -114,7 +113,7 @@ private enum class LightsMode(val label: String) { Setup("Colours"), HueScene("H
 
 /**
  * Editor for a scene's lights: a light setup made here, a scene from the Hue app, or nothing.
- * Changes are saved as they're made; "Try on lights" previews the setup.
+ * Changes are saved and shown on the lights as they're made.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -125,7 +124,6 @@ fun LightsSheet(
     hueScenes: Result<List<HueSceneRef>>?,
     onLoadHueScenes: () -> Unit,
     onSetLighting: (LightSetup?) -> Unit,
-    onTryLighting: (LightSetup) -> Unit,
     onLinkHueScene: (HueSceneRef?) -> Unit,
     onChooseRoom: () -> Unit,
     onDismiss: () -> Unit,
@@ -170,7 +168,7 @@ fun LightsSheet(
             }
             when (mode) {
                 LightsMode.Setup -> lighting?.let {
-                    LightSetupEditor(it, room, onChange = onSetLighting, onTry = onTryLighting, onChooseRoom = onChooseRoom)
+                    LightSetupEditor(it, room, onChange = onSetLighting, onChooseRoom = onChooseRoom)
                 }
                 LightsMode.HueScene -> HueSceneList(lights, hueScenes, onLoadHueScenes, onLinkHueScene)
                 LightsMode.None -> Text(
@@ -189,10 +187,13 @@ private fun LightSetupEditor(
     setup: LightSetup,
     room: String?,
     onChange: (LightSetup) -> Unit,
-    onTry: (LightSetup) -> Unit,
     onChooseRoom: () -> Unit,
 ) {
     var editingSlot by remember { mutableStateOf<Int?>(null) }
+    /** The slot as it was when its dialog opened, restored on Cancel (edits are applied live). */
+    var slotBeforeEdit by remember { mutableStateOf<LightSlot?>(null) }
+    fun replaceSlot(index: Int, slot: LightSlot) =
+        onChange(setup.copy(slots = setup.slots.toMutableList().also { it[index] = slot }))
 
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(
@@ -213,7 +214,12 @@ private fun LightSetupEditor(
     FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         setup.slots.forEachIndexed { index, slot ->
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Box(Modifier.clickable { editingSlot = index }) { Swatch(slot.color, 52) }
+                Box(
+                    Modifier.clickable {
+                        slotBeforeEdit = slot
+                        editingSlot = index
+                    },
+                ) { Swatch(slot.color, 52) }
                 Text(
                     slot.effect?.let { EFFECTS[it] } ?: " ",
                     style = MaterialTheme.typography.labelSmall,
@@ -228,7 +234,9 @@ private fun LightSetupEditor(
                     .clip(CircleShape)
                     .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
                     .clickable {
-                        onChange(setup.copy(slots = setup.slots + setup.slots.last().copy(effect = null)))
+                        val added = setup.slots.last().copy(effect = null)
+                        onChange(setup.copy(slots = setup.slots + added))
+                        slotBeforeEdit = added
                         editingSlot = setup.slots.size
                     },
                 contentAlignment = Alignment.Center,
@@ -239,9 +247,12 @@ private fun LightSetupEditor(
     Text("Brightness: " + if (setup.brightness <= 0f) "off" else "${(setup.brightness * 100).roundToInt()}%", style = MaterialTheme.typography.labelLarge)
     Slider(value = setup.brightness, onValueChange = { onChange(setup.copy(brightness = it)) })
 
-    OutlinedButton(onClick = { onTry(setup) }, enabled = room != null, modifier = Modifier.fillMaxWidth()) {
-        Icon(Icons.Default.Lightbulb, contentDescription = null)
-        Text("Try on lights", Modifier.padding(start = 8.dp))
+    if (room != null) {
+        Text(
+            "Changes show on your lights as you make them.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 
     editingSlot?.let { index ->
@@ -249,38 +260,44 @@ private fun LightSetupEditor(
             SlotDialog(
                 slot = slot,
                 canRemove = setup.slots.size > 1,
-                onSave = { updated ->
-                    onChange(setup.copy(slots = setup.slots.toMutableList().also { it[index] = updated }))
-                    editingSlot = null
-                },
+                onPreview = { if (it != setup.slots.getOrNull(index)) replaceSlot(index, it) },
+                onDone = { editingSlot = null },
                 onRemove = {
                     onChange(setup.copy(slots = setup.slots.toMutableList().also { it.removeAt(index) }))
                     editingSlot = null
                 },
-                onDismiss = { editingSlot = null },
+                onCancel = {
+                    slotBeforeEdit?.let { replaceSlot(index, it) }
+                    editingSlot = null
+                },
             )
         }
     }
 }
 
-/** Colour picker for one slot: presets, hue and saturation sliders, and a flicker effect. */
+/**
+ * Colour picker for one slot: presets, hue and saturation sliders, and a flicker effect. Every change
+ * is passed to [onPreview] right away so the lights follow; [onCancel] should undo them.
+ */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun SlotDialog(
     slot: LightSlot,
     canRemove: Boolean,
-    onSave: (LightSlot) -> Unit,
+    onPreview: (LightSlot) -> Unit,
+    onDone: () -> Unit,
     onRemove: () -> Unit,
-    onDismiss: () -> Unit,
+    onCancel: () -> Unit,
 ) {
-    val hsv = remember(slot.color) { FloatArray(3).also { AndroidColor.colorToHSV(parseColor(slot.color), it) } }
+    val hsv = remember { FloatArray(3).also { AndroidColor.colorToHSV(parseColor(slot.color), it) } }
     var hue by remember { mutableFloatStateOf(hsv[0]) }
     var saturation by remember { mutableFloatStateOf(hsv[1]) }
     var effect by remember { mutableStateOf(slot.effect) }
     val color = toHex(hue, saturation)
+    LaunchedEffect(color, effect) { onPreview(LightSlot(color, effect)) }
 
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = onCancel,
         title = { Text("Colour") },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -334,8 +351,8 @@ private fun SlotDialog(
                 }
             }
         },
-        confirmButton = { TextButton(onClick = { onSave(LightSlot(color, effect)) }) { Text("Done") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        confirmButton = { TextButton(onClick = onDone) { Text("Done") } },
+        dismissButton = { TextButton(onClick = onCancel) { Text("Cancel") } },
     )
 }
 

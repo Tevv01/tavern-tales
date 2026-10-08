@@ -18,12 +18,15 @@ import dev.tevv.taverntales.model.SoundLayer
 import dev.tevv.taverntales.model.collectionOf
 import dev.tevv.taverntales.model.findScene
 import dev.tevv.taverntales.model.newId
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -122,10 +125,26 @@ class SceneViewModel(
         ref?.let(hue::recall)
     }
 
-    /** Sets (or with null, removes) this scene's own light setup; replaces a linked Hue scene. */
-    fun setLighting(setup: LightSetup?) = repository.setLighting(sceneId, setup)
+    /**
+     * Light setups being edited, shown on the lights as they change. Conflated and spaced out so a
+     * slider drag doesn't flood the bridge, while the last change always gets through.
+     */
+    private val lightPreview = MutableSharedFlow<LightSetup>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
 
-    fun tryLighting(setup: LightSetup) = hue.apply(setup)
+    init {
+        viewModelScope.launch {
+            lightPreview.conflate().collect {
+                hue.apply(it)
+                delay(LIGHT_PREVIEW_INTERVAL_MS)
+            }
+        }
+    }
+
+    /** Sets (or with null, removes) this scene's own light setup, replacing a linked Hue scene, and shows it on the lights. */
+    fun setLighting(setup: LightSetup?) {
+        repository.setLighting(sceneId, setup)
+        setup?.let(lightPreview::tryEmit)
+    }
 
     fun applyLights() {
         scene.value?.let(launcher::applyLights)
@@ -169,4 +188,8 @@ class SceneViewModel(
     fun updateEvent(eventId: String, transform: (SoundEvent) -> SoundEvent) = repository.updateEvent(eventId, transform)
 
     fun removeEvent(eventId: String) = repository.removeEvent(eventId)
+
+    private companion object {
+        const val LIGHT_PREVIEW_INTERVAL_MS = 500L
+    }
 }

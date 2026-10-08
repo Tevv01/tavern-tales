@@ -266,7 +266,6 @@ fun SceneScreen(
             hueScenes = hueScenes,
             onLoadHueScenes = viewModel::loadHueScenes,
             onSetLighting = viewModel::setLighting,
-            onTryLighting = viewModel::tryLighting,
             onLinkHueScene = viewModel::linkLights,
             onChooseRoom = {
                 pickingLights = false
