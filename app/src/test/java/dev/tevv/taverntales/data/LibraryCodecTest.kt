@@ -76,10 +76,10 @@ class LibraryCodecTest {
               { "id": "default-town", "name": "Town", "lights": { "id": "hue-1", "name": "Relax" } },
               { "id": "mine", "name": "Mine" } ] } ] }
         """.trimIndent()
-        val scenes = LibraryCodec.decode(v2).collections.single { it.id == "default" }.scenes
-        assertEquals(DefaultLibrary.lighting["tavern"], scenes[0].lighting)
-        assertEquals(null, scenes[1].lighting) // user already linked a Hue scene
-        assertEquals(null, scenes[2].lighting) // not a built-in scene
+        val scenes = LibraryCodec.decode(v2).collections.flatMap { it.scenes }.associateBy { it.id }
+        assertEquals(DefaultLibrary.lighting["tavern"], scenes.getValue("default-tavern").lighting)
+        assertEquals(null, scenes.getValue("default-town").lighting) // user already linked a Hue scene
+        assertEquals(null, scenes.getValue("mine").lighting) // not a built-in scene
     }
 
     @Test
@@ -89,12 +89,12 @@ class LibraryCodecTest {
               { "id": "default-cave", "name": "Cave", "lighting": { "slots": [ { "color": "#112233" } ], "brightness": 0.9 } },
               { "id": "mine", "name": "Mine", "lighting": { "slots": [ { "color": "#112233" } ], "brightness": 0.9 } } ] } ] }
         """.trimIndent()
-        val scenes = LibraryCodec.decode(v3).collections.single { it.id == "default" }.scenes
-        val cave = scenes[0].lighting!!
+        val scenes = LibraryCodec.decode(v3).collections.flatMap { it.scenes }.associateBy { it.id }
+        val cave = scenes.getValue("default-cave").lighting!!
         assertEquals(DefaultLibrary.lighting.getValue("cave").motion, cave.motion)
         assertEquals("#112233", cave.slots.single().color) // the user's edits survive
         assertEquals(0.9f, cave.brightness)
-        assertEquals(0f, scenes[1].lighting!!.motion) // the user's own scenes stay still
+        assertEquals(0f, scenes.getValue("mine").lighting!!.motion) // the user's own scenes stay still
     }
 
     @Test
@@ -118,21 +118,61 @@ class LibraryCodecTest {
         assertEquals(DefaultLibrary.create(), LibraryCodec.decode("""{ "version": 1, "scenes": [] }"""))
     }
 
-    @Test
-    fun decode_version5AddsTheAdventuresCollectionOnce() {
-        val v5 = """
-            { "version": 5, "events": [], "collections": [ { "id": "default", "name": "Essentials", "scenes": [] } ] }
-        """
-        val migrated = LibraryCodec.decode(v5)
-        assertEquals(listOf("default", DefaultLibrary.ADVENTURES_ID), migrated.collections.map { it.id })
-        assertEquals(DefaultLibrary.adventures(), migrated.collections.last())
-        // Saved again as the current version: decoding doesn't add it a second time.
-        assertEquals(migrated, LibraryCodec.decode(LibraryCodec.encode(migrated)))
+    private fun builtIn(key: String) = DefaultLibrary.create().collections.flatMap { it.scenes }.first { it.id == "default-$key" }
+
+    /** How a v5 library looked: the six original scenes in "Essentials" (plus whatever the user did). */
+    private fun essentials(vararg scenes: Scene, collapsed: Boolean = false) =
+        SceneCollection(DefaultLibrary.LEGACY_COLLECTION_ID, "Essentials", scenes.toList(), collapsed)
+
+    private fun decodeAsVersion5(library: Library): Library {
+        val json = LibraryCodec.encode(library)
+        val v5 = json.replace("\"version\": ${LibraryCodec.CURRENT_VERSION}", "\"version\": 5")
+        check(v5 != json)
+        return LibraryCodec.decode(v5)
     }
 
     @Test
-    fun decode_currentVersionWithoutAdventuresKeepsItDeleted() {
-        val deleted = DefaultLibrary.create().let { it.copy(collections = it.collections.filter { c -> c.id != DefaultLibrary.ADVENTURES_ID }) }
-        assertEquals(deleted, LibraryCodec.decode(LibraryCodec.encode(deleted)))
+    fun decode_version5GroupsTheBuiltInScenesByThemeKeepingTheUsersChanges() {
+        val quietTavern = builtIn("tavern").let { it.copy(layers = it.layers.map { l -> l.copy(volume = 0.1f) }) }
+        val campaign = SceneCollection("mine", "Campaign", listOf(Scene("harbour", "Harbour")))
+        val old = Library(
+            collections = listOf(
+                essentials(builtIn("town"), quietTavern, builtIn("dungeon"), builtIn("market"), builtIn("forest"), builtIn("cave"), collapsed = true),
+                campaign,
+            ),
+        )
+        val migrated = decodeAsVersion5(old)
+        assertEquals(listOf("Settlements", "Wilderness", "Underground", "Campaign"), migrated.collections.map { it.name })
+        assertEquals(DefaultLibrary.create().collections.map { it.scenes.map { s -> s.id } }, migrated.collections.take(3).map { it.scenes.map { s -> s.id } })
+        assertEquals(quietTavern, migrated.collections[0].scenes[1]) // the user's mix survives the move
+        assertEquals(listOf(true, true, true, false), migrated.collections.map { it.collapsed }) // folded like Essentials was
+        assertEquals(migrated, LibraryCodec.decode(LibraryCodec.encode(migrated))) // and nothing changes on the next load
+    }
+
+    @Test
+    fun decode_version5LeavesMovedDeletedAndOwnScenesAlone() {
+        val old = Library(
+            collections = listOf(
+                // Market deleted, Cave moved to the campaign, the user's own scene added to Essentials.
+                essentials(builtIn("town"), builtIn("tavern"), Scene("harbour", "Harbour"), builtIn("dungeon"), builtIn("forest")),
+                SceneCollection("mine", "Campaign", listOf(builtIn("cave"))),
+            ),
+        )
+        val migrated = decodeAsVersion5(old).collections.associate { it.name to it.scenes.map { s -> s.id.removePrefix("default-") } }
+        assertEquals(listOf("Settlements", "Wilderness", "Underground", "Essentials", "Campaign"), migrated.keys.toList())
+        assertEquals(listOf("town", "tavern", "castle", "temple"), migrated["Settlements"])
+        assertEquals(listOf("forest", "swamp", "blizzard", "ship"), migrated["Wilderness"])
+        assertEquals(listOf("dungeon"), migrated["Underground"])
+        assertEquals(listOf("harbour"), migrated["Essentials"])
+        assertEquals(listOf("cave"), migrated["Campaign"])
+    }
+
+    @Test
+    fun decode_version5WithoutEssentialsGetsOnlyTheNewScenes() {
+        val migrated = decodeAsVersion5(Library(collections = listOf(SceneCollection("mine", "Campaign"))))
+        val byName = migrated.collections.associate { it.name to it.scenes.map { s -> s.id.removePrefix("default-") } }
+        assertEquals(listOf("Campaign", "Settlements", "Wilderness"), byName.keys.toList()) // no new underground scenes
+        assertEquals(listOf("castle", "temple"), byName["Settlements"])
+        assertEquals(listOf("swamp", "blizzard", "ship"), byName["Wilderness"])
     }
 }

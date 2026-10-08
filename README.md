@@ -7,9 +7,10 @@ An Android app for running ambience at the tabletop RPG table. Each scene layers
 ## Features
 
 **Scenes and collections**
-- Group scenes into collections (per campaign, per region, ...). Two built-in collections come with the app, each scene with its own artwork, sounds and lighting:
-  - **Essentials**: Town, Tavern, Dungeon, Market, Forest and Cave.
-  - **Adventures**: Ship at sea, Swamp, Castle hall, Temple and Blizzard.
+- Group scenes into collections (per campaign, per region, ...). Eleven built-in scenes come with the app, each with its own artwork, sounds and lighting:
+  - **Settlements**: Town, Tavern, Market, Castle hall and Temple.
+  - **Wilderness**: Forest, Swamp, Blizzard and Ship at sea.
+  - **Underground**: Dungeon and Cave.
 - Give any scene a picture from your gallery, and move scenes between collections.
 - Each collection shows all its scenes at a glance. Tap a collection's name to fold it away (one for D&D, one for a board game night...); folded collections stay folded and show when one of their scenes is playing.
 

@@ -138,10 +138,13 @@ class BackupTest {
             events = DefaultLibrary.events() + SoundEvent("mine", "Door slam", "content://door"),
         )
         val merged = BackupFormat.merge(current, incoming)
-        assertEquals(listOf("Essentials", "Adventures", "Essentials (imported)", "Adventures (imported)"), merged.collections.map { it.name })
+        assertEquals(
+            listOf("Settlements", "Wilderness", "Underground", "Settlements (imported)", "Wilderness (imported)", "Underground (imported)"),
+            merged.collections.map { it.name },
+        )
         val ids = merged.collections.flatMap { c -> listOf(c.id) + c.scenes.map { it.id } + c.scenes.flatMap { s -> s.layers.map { it.id } } }
         assertEquals(ids.size, ids.toSet().size)
-        assertNotEquals(merged.collections[0].scenes[0].id, merged.collections[2].scenes[0].id)
+        assertNotEquals(merged.collections[0].scenes[0].id, merged.collections[3].scenes[0].id)
         // Built-in events already present aren't duplicated; the new one is added.
         assertEquals(current.events.size + 1, merged.events.size)
         assertEquals("Door slam", merged.events.last().name)
