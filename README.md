@@ -9,7 +9,7 @@ An Android app for running ambience at the tabletop RPG table. Each scene layers
 **Scenes and collections**
 - Group scenes into collections (per campaign, per region, ...). The built-in **Essentials** collection has a Town, Tavern, Dungeon, Market, Forest and Cave, each with its own artwork, sounds and lighting.
 - Give any scene a picture from your gallery, and move scenes between collections.
-- Tap a collection's name to fold it away (one for D&D, one for a board game night...); folded collections stay folded and show when one of their scenes is playing.
+- Each collection shows all its scenes at a glance. Tap a collection's name to fold it away (one for D&D, one for a board game night...); folded collections stay folded and show when one of their scenes is playing.
 
 **Live ambience mixer**
 - Each scene is made of sound layers (crowds, rain, fire, music...) that you switch on and off and mix while it plays. Sounds fade in and out smoothly.
@@ -18,7 +18,7 @@ An Android app for running ambience at the tabletop RPG table. Each scene layers
 
 **Events**
 - A pad of sound effects available in every scene: Fireball, Explosion, Holy light, Thunder, Sword clash, Arcane spell, Monster roar and Arrow volley.
-- With Hue connected, events flash the lights: Fireball bursts orange, Thunder strobes white, Holy light glows gold. Afterwards the lights return to the scene.
+- With Hue connected, events flash the lights: Fireball bursts orange, Thunder flickers white like lightning, Holy light glows gold. Afterwards the lights return to the scene.
 - Add your own, and change each pad's name, icon, colour, volume, sound and light flash.
 
 **Philips Hue lighting**
@@ -34,14 +34,15 @@ An Android app for running ambience at the tabletop RPG table. Each scene layers
 1. Download the `.apk` from the [latest release](https://github.com/Tevv01/tavern-tales/releases/latest) on an Android phone (Android 8 or newer).
 2. Open it. You may need to allow installing apps from your browser or file manager.
 
-From 0.2.1 on, releases are signed and install over each other, keeping your scenes. If you have 0.1.0 or 0.2.0 installed (debug-signed test builds), uninstall it once before installing a signed release: make a backup first (**⋮ → Back up library**) and restore it afterwards.
+From 0.2.1 on, releases are signed and install over each other, keeping your scenes. If you have 0.1.0 or 0.2.0 installed (debug-signed test builds), uninstall it once before installing a signed release: make a backup first (**Scenes → ⋮ → Back up library**) and restore it afterwards.
 
 ## Getting started
 
 - **Find your way**: the app opens on its main menu. **Scenes** leads to everything below; **Credits & licences** and **Privacy** are there too.
 - **Play a scene**: tap the play button on a scene's picture, or open it and tap **Play scene**. Switch individual sounds on and off and adjust their volumes on the **Ambience** tab; the **Events** tab has the sound-effect pads.
-- **Set up Hue lights**: tap the lightbulb on the home screen, connect your bridge and press its link button, then choose the **Room for scene lighting**. Each scene's **Lights** row lets you edit its colours, brightness, flicker and movement.
-- **Back up**: **⋮ → Back up library** on the home screen. Keep the file somewhere safe, such as Google Drive.
+- **Organise**: the folder button on the Scenes screen makes a new collection, and **+** next to a collection's name adds a scene to it. Long-press a scene to rename it, move it to another collection or delete it.
+- **Set up Hue lights**: tap the lightbulb on the Scenes screen, connect your bridge and press its link button, then choose the **Room for scene lighting**. Each scene's **Lights** row lets you edit its colours, brightness, flicker and movement.
+- **Back up**: **⋮ → Back up library** on the Scenes screen. Keep the file somewhere safe, such as Google Drive.
 
 ## Requirements and limitations
 
@@ -55,7 +56,7 @@ Tavern Tales has no account and no ads, and doesn't track you. Your scenes, soun
 
 The app only talks to the network for:
 - **Your Hue Bridge**, directly on your Wi-Fi. If the bridge can't be found there, the app asks Philips Hue's discovery service (`discovery.meethue.com`) for its local address, as the Hue app does.
-- **Crash reports, only if you agree.** The app asks once; you can change your answer in the **⋮** menu. If a crash happens, a report goes to [Sentry](https://sentry.io), stored in the EU. It contains:
+- **Crash reports, only if you agree.** The app asks once; you can change your answer on the **Privacy** screen or in the Scenes screen's **⋮** menu. If a crash happens, a report goes to [Sentry](https://sentry.io), stored in the EU. It contains:
   - the error and where in the app it happened, and the app version;
   - the phone model and Android version, plus technical details such as memory, storage, battery level, screen size, network type, and your language and time-zone settings;
   - a random ID created when the app was installed, which only lets crashes from the same install be counted together. It isn't linked to you.
@@ -105,7 +106,7 @@ It plays real audio, so mute the phone first.
 | `.../data` | Storage (`library.json` with format migrations), built-in content, backup and restore |
 | `.../audio` | The mixer (one player per sound, fades), background playback service, scene launcher |
 | `.../hue` | Hue bridge discovery, pairing, light commands and movement |
-| `.../ui` | Compose screens: home, scene, Hue setup |
+| `.../ui` | Compose screens: main menu, scenes, scene mixer, Hue setup, credits and privacy |
 | `app/src/main/assets/sounds`, `res/drawable-nodpi` | Built-in sounds and scene pictures |
 | `tools/` | Scripts that fetch and process the built-in sounds and draw the scene art |
 
@@ -131,5 +132,6 @@ The scene pictures, the main menu's title picture and the app background are dra
 ## Credits
 
 - Sounds: see [SOUND_CREDITS.md](SOUND_CREDITS.md).
+- Open-source libraries: listed with their licences in the app under **Credits & licences**.
 - Heading font: [Cinzel](https://github.com/NDISCOVER/Cinzel), SIL Open Font License (see `licenses/`).
 - Philips Hue is a trademark of Signify. Tavern Tales is not affiliated with or endorsed by Signify.

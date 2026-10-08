@@ -26,11 +26,19 @@ class LightFlashesTest {
     }
 
     @Test
-    fun strobeAlternatesBrightAndDarkAndEndsBright() {
+    fun strobeFlashesTwiceWithDarkBetween() {
         val steps = LightFlashes.steps(LightFlash(LightFlash.STROBE, "#FFFFFF"))
         val brightness = steps.map { it.body["dimming"]!!.jsonObject["brightness"]!!.jsonPrimitive.double }
-        assertEquals(listOf(100.0, 1.0, 100.0, 1.0, 100.0), brightness)
-        assertTrue("strobe should be over within a second", steps.sumOf { it.holdMs } < 1000)
+        assertEquals(listOf(100.0, 1.0, 100.0), brightness)
+        assertTrue("strobe should be over within 1.5 s", steps.sumOf { it.holdMs } < 1500)
+    }
+
+    @Test
+    fun groupCommandsAreSpacedSoTheBridgeKeepsUp() {
+        for (style in listOf(LightFlash.FLASH, LightFlash.STROBE, LightFlash.GLOW)) {
+            val steps = LightFlashes.steps(LightFlash(style, "#FFFFFF"))
+            steps.dropLast(1).forEach { assertTrue("$style step held ${it.holdMs} ms", it.holdMs >= LightFlashes.MIN_GROUP_GAP_MS) }
+        }
     }
 
     @Test
