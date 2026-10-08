@@ -65,7 +65,7 @@ The app only talks to the network for:
   - a random ID created when the app was installed, which only lets crashes from the same install be counted together. It isn't linked to you.
 
   No name, account, IP address, location, scenes, sounds, pictures or screenshots are included. After a report is sent, the app shows you the complete report, exactly as it was sent, so you can check (and copy) what was shared. Development (debug) builds never send reports.
-- **Bug reports you write and send yourself** (**Report a bug**). They go to the same place as crash reports and contain your message, your email if you give one, the app's recent log if you tick the box, and the same technical details as a crash report. You review the report before it's sent and can see the complete report afterwards. Sending one doesn't switch on crash reports.
+- **Bug reports you write and send yourself** (**Report a bug**). They go to the same place as crash reports and contain your message, your email if you give one, the app's recent log if you tick the box, and the same technical details as a crash report. The log holds technical messages from the app and from Android while it runs, such as connection or playback errors and system warnings; it doesn't contain your name, accounts or files. You review the report, every log line included, before it's sent and can see the complete report afterwards. Sending one doesn't switch on crash reports.
 
 ## Planned
 

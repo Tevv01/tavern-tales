@@ -123,8 +123,8 @@ fun BugReportScreen(
                     Column(Modifier.padding(start = 4.dp)) {
                         Text("Include the app's log", style = MaterialTheme.typography.titleSmall)
                         Text(
-                            "Recent technical messages from Tavern Tales, such as Hue connection or playback " +
-                                "problems. You'll see it before anything is sent.",
+                            "Recent technical messages from the app and from Android while it runs, such as Hue " +
+                                "connection or playback problems. You'll see every line before anything is sent.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -154,7 +154,7 @@ fun BugReportScreen(
             }
             Section("What gets sent") {
                 Text(
-                    "Your message, your email if you give one, and the log if you include it. Plus the same technical " +
+                    "Your message, your email if you give one, and the app's log if you include it. Plus the same technical " +
                         "details as a crash report: the app version, your phone model and Android version, memory, " +
                         "storage, battery level, screen size, network type, language and time-zone settings, and the " +
                         "app's random install ID. It goes to Sentry, stored in the EU. No IP address, location, scenes, " +

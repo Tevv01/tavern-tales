@@ -175,9 +175,11 @@ fun PrivacyScreen(onBack: () -> Unit, crashReportsEnabled: Boolean?, onCrashRepo
         Section("Bug reports") {
             Text(
                 "When you send a bug report from Report a bug, it goes to the same place as crash reports: your " +
-                    "message, your email if you give one, the app's log if you choose to include it, and the same " +
-                    "technical details as a crash report. You review it before it's sent and can see the complete " +
-                    "report afterwards. Sending one doesn't switch on crash reports.",
+                    "message, your email if you give one, the app's recent log if you choose to include it, and the " +
+                    "same technical details as a crash report. The log holds technical messages from the app and from " +
+                    "Android while it runs, such as connection or playback errors and system warnings; it doesn't " +
+                    "contain your name, accounts or files. You review the report, every log line included, before " +
+                    "it's sent and can see the complete report afterwards. Sending one doesn't switch on crash reports.",
                 style = MaterialTheme.typography.bodyMedium,
             )
         }

@@ -98,9 +98,10 @@ class CrashReporting(private val app: Application) {
     }
 
     /**
-     * Tavern Tales' own recent log lines (Android only lets an app read its own): the app's messages
-     * and ExoPlayer's, plus warnings and errors from anything else in the process. The phone's own
-     * screen-drawing chatter is left out, so the useful lines aren't pushed out.
+     * This process's recent log lines (Android only lets an app read its own): the app's messages and
+     * ExoPlayer's, plus warnings and errors from anything else in the process (Android and the phone's
+     * system libraries). The phone's info-level screen-drawing chatter is left out, so the useful lines
+     * aren't pushed out. Keep the wording on the bug report and Privacy screens in line with this.
      */
     suspend fun recentLog(): String = withContext(Dispatchers.IO) {
         runCatching {
