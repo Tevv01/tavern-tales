@@ -42,7 +42,17 @@ class Preferences(context: Context) {
         _sceneChange.value = value
     }
 
+    /** Off: event pads only flash the lights, for game masters who make the noises themselves. */
+    private val _eventSounds = MutableStateFlow(prefs.getBoolean(KEY_EVENT_SOUNDS, true))
+    val eventSounds: StateFlow<Boolean> = _eventSounds.asStateFlow()
+
+    fun setEventSounds(on: Boolean) {
+        prefs.edit { putBoolean(KEY_EVENT_SOUNDS, on) }
+        _eventSounds.value = on
+    }
+
     private companion object {
         const val KEY_SCENE_CHANGE = "scene_change"
+        const val KEY_EVENT_SOUNDS = "event_sounds"
     }
 }

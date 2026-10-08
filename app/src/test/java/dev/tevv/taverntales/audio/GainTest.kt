@@ -25,4 +25,11 @@ class GainTest {
             assertEquals("power at $t", 1f, incoming * incoming + outgoing * outgoing, 1e-5f)
         }
     }
+
+    @Test
+    fun mutingSilencesWithoutForgettingTheMasterVolume() {
+        val state = MixerState(masterVolume = 0.7f, muted = true)
+        assertEquals(0f, state.effectiveMaster, 0f)
+        assertEquals(0.7f, state.copy(muted = false).effectiveMaster, 0f)
+    }
 }

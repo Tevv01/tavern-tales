@@ -190,7 +190,9 @@ def sparse_loop(x, length, mean_gap, seed=5):
     if not events:
         sys.exit("no distinct sounds found for sparse loop")
     buf = np.zeros((length + 10 * SR, 2))
-    t = rng.uniform(0, mean_gap) * SR
+    # The first sound comes right away, so a layer that's just been switched on is heard at once;
+    # the gaps vary around mean_gap but never leave long stretches of silence.
+    t = rng.uniform(0.3, 1.5) * SR
     while t < length:
         a, b = events[rng.integers(len(events))]
         piece = x[a:b].copy()
@@ -199,7 +201,7 @@ def sparse_loop(x, length, mean_gap, seed=5):
         piece[-fade:] *= np.linspace(1, 0, fade)[:, None]
         s = int(t)
         buf[s:s + len(piece)] += piece * rng.uniform(0.5, 1.0)
-        t += len(piece) + rng.exponential(mean_gap) * SR
+        t += len(piece) + rng.uniform(0.5, 1.5) * mean_gap * SR
     out = buf[:length].copy()  # wrap the overhang onto the start so it loops
     tail = buf[length:]
     out[:len(tail)] += tail[:length]

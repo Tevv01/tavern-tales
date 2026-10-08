@@ -22,9 +22,11 @@ import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.DriveFileMove
+import androidx.compose.material.icons.automirrored.filled.VolumeOff
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Bolt
@@ -43,6 +45,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconToggleButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.PrimaryTabRow
@@ -50,6 +53,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -65,14 +69,17 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -117,6 +124,7 @@ fun SceneScreen(
     val mixer by viewModel.mixerState.collectAsStateWithLifecycle()
     val hueBridge by viewModel.hueBridge.collectAsStateWithLifecycle()
     val hueScenes by viewModel.hueScenes.collectAsStateWithLifecycle()
+    val eventSounds by viewModel.eventSounds.collectAsStateWithLifecycle()
     var pickingLights by rememberSaveable { mutableStateOf(false) }
     val current = scene ?: run {
         // Deleted (from this screen's menu or elsewhere); nothing to show.
@@ -197,8 +205,10 @@ fun SceneScreen(
                     onPlay = viewModel::playScene,
                     onStop = viewModel::stopAll,
                     onMasterVolume = viewModel::setMasterVolume,
+                    onMuted = viewModel::setMuted,
                 )
             }
+            val eventSoundsSwitch = @Composable { EventSoundsSwitch(eventSounds, viewModel::setEventSounds) }
             val lightsRow = @Composable {
                 LightsRow(
                     lighting = current.lighting,
@@ -262,6 +272,7 @@ fun SceneScreen(
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
                         item(span = { GridItemSpan(maxLineSpan) }) { PaneHeader(Icons.Default.Bolt, "Events") }
+                        item(span = { GridItemSpan(maxLineSpan) }) { eventSoundsSwitch() }
                         items(events, key = { it.id }) { eventPad(it) }
                         item(key = "add-event") { addEventPad() }
                         item(span = { GridItemSpan(maxLineSpan) }) { Hint(EVENTS_HINT) }
@@ -306,6 +317,7 @@ fun SceneScreen(
                         }
                         items(current.layers, key = { it.id }, span = { GridItemSpan(maxLineSpan) }) { layerCard(it) }
                     } else {
+                        item(span = { GridItemSpan(maxLineSpan) }) { eventSoundsSwitch() }
                         items(events, key = { it.id }) { eventPad(it) }
                         item(key = "add-event") { addEventPad() }
                         item(span = { GridItemSpan(maxLineSpan) }) { Hint(EVENTS_HINT) }
@@ -336,7 +348,7 @@ fun SceneScreen(
         EventEditorSheet(
             event = event,
             onUpdate = { transform -> viewModel.updateEvent(event.id, transform) },
-            onPreview = { viewModel.playEvent(event) },
+            onPreview = { viewModel.previewEvent(event) },
             onReplaceSound = { replaceEventAudio.launch(arrayOf("audio/*")) },
             onDelete = { dialog = SceneDialog.DeleteEvent(event) },
             onDismiss = { editingEventId = null },
@@ -470,6 +482,7 @@ private fun SceneControls(
     onPlay: () -> Unit,
     onStop: () -> Unit,
     onMasterVolume: (Float) -> Unit,
+    onMuted: (Boolean) -> Unit,
 ) {
     Column {
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -487,17 +500,29 @@ private fun SceneControls(
             }
         }
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
-            Icon(
-                Icons.AutoMirrored.Filled.VolumeUp,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(end = 12.dp),
-            )
+            // Tap the speaker to mute everything; the slider keeps its place for unmuting.
+            IconToggleButton(
+                checked = mixer.muted,
+                onCheckedChange = onMuted,
+                modifier = Modifier.semantics { stateDescription = if (mixer.muted) "Muted" else "On" },
+            ) {
+                Icon(
+                    if (mixer.muted) Icons.AutoMirrored.Filled.VolumeOff else Icons.AutoMirrored.Filled.VolumeUp,
+                    contentDescription = "Mute",
+                    tint = if (mixer.muted) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             Text("Master", style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(end = 12.dp))
             Slider(
                 value = mixer.masterVolume,
                 onValueChange = onMasterVolume,
-                modifier = Modifier.weight(1f).semantics { contentDescription = "Master volume" },
+                modifier = Modifier
+                    .weight(1f)
+                    .alpha(if (mixer.muted) 0.4f else 1f)
+                    .semantics {
+                        contentDescription = "Master volume"
+                        if (mixer.muted) stateDescription = "Muted"
+                    },
             )
         }
     }
@@ -547,6 +572,28 @@ private fun SceneMenu(
                 onClick = { open = false; onDelete() },
             )
         }
+    }
+}
+
+/** Switches event sounds on and off for all scenes; off, the pads only flash the lights. */
+@Composable
+private fun EventSoundsSwitch(on: Boolean, onChange: (Boolean) -> Unit) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .toggleable(value = on, role = Role.Switch, onValueChange = onChange)
+            .padding(horizontal = 4.dp, vertical = 2.dp),
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text("Event sounds", style = MaterialTheme.typography.titleSmall)
+            Text(
+                if (on) "Pads play their sound and flash the lights." else "Off: pads only flash the lights.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Switch(checked = on, onCheckedChange = null)
     }
 }
 
