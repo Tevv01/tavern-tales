@@ -31,6 +31,15 @@ fun Library.moveScene(sceneId: String, toCollectionId: String): Library {
     return removeScene(sceneId).addScene(toCollectionId, scene)
 }
 
+/** Puts the collections in the order of [ids]; any not listed keep their order after them. */
+fun Library.withCollectionOrder(ids: List<String>): Library =
+    copy(collections = collections.sortedBy { c -> ids.indexOf(c.id).let { if (it < 0) Int.MAX_VALUE else it } })
+
+/** Puts a collection's scenes in the order of [ids]; any not listed keep their order after them. */
+fun Library.withSceneOrder(collectionId: String, ids: List<String>): Library = updateCollection(collectionId) { c ->
+    c.copy(scenes = c.scenes.sortedBy { s -> ids.indexOf(s.id).let { if (it < 0) Int.MAX_VALUE else it } })
+}
+
 fun Library.updateEvent(eventId: String, transform: (SoundEvent) -> SoundEvent): Library =
     copy(events = events.map { if (it.id == eventId) transform(it) else it })
 

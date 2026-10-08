@@ -19,6 +19,8 @@ import dev.tevv.taverntales.model.updateCollection
 import dev.tevv.taverntales.model.updateEvent
 import dev.tevv.taverntales.model.updateLayer
 import dev.tevv.taverntales.model.updateScene
+import dev.tevv.taverntales.model.withCollectionOrder
+import dev.tevv.taverntales.model.withSceneOrder
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
@@ -72,6 +74,10 @@ class LibraryRepository(private val dir: File, scope: CoroutineScope) {
 
     fun renameCollection(collectionId: String, name: String) =
         _library.update { lib -> lib.updateCollection(collectionId) { it.copy(name = name) } }
+
+    fun setCollectionOrder(ids: List<String>) = _library.update { it.withCollectionOrder(ids) }
+
+    fun setSceneOrder(collectionId: String, ids: List<String>) = _library.update { it.withSceneOrder(collectionId, ids) }
 
     fun setCollapsed(collectionId: String, collapsed: Boolean) =
         _library.update { lib -> lib.updateCollection(collectionId) { it.copy(collapsed = collapsed) } }

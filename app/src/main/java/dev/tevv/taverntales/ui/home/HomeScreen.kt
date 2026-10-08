@@ -4,7 +4,9 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
@@ -28,6 +30,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -79,8 +82,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.onLongClick
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
@@ -235,19 +241,34 @@ fun HomeScreen(
                 )
             }
         } else {
+            // Collections and scenes can be held and dragged into a new order.
+            val listState = rememberLazyListState()
+            val reorder = rememberCollectionReorderState(listState)
+            val ids = library.collections.map { it.id }
+            LaunchedEffect(ids) { reorder.onLibraryChanged(ids) }
+            val byId = library.collections.associateBy { it.id }
             LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(padding),
+                state = listState,
+                modifier = Modifier.fillMaxSize().padding(padding).reorderableList(reorder),
                 contentPadding = PaddingValues(bottom = 24.dp),
             ) {
-                items(library.collections, key = { it.id }) { collection ->
+                items(reorder.shown(ids), key = { it }) { id ->
+                    val collection = byId[id] ?: return@items
                     CollectionSection(
                         collection = collection,
                         mixer = mixer,
                         canMoveScenes = library.collections.size > 1,
+                        reorder = reorder,
+                        collectionIds = ids,
+                        onReorderCollections = viewModel::setCollectionOrder,
+                        onReorderScenes = { order -> viewModel.setSceneOrder(collection.id, order) },
                         onOpenScene = onOpenScene,
                         onTogglePlay = viewModel::togglePlay,
                         onToggleCollapsed = { viewModel.setCollapsed(collection.id, !collection.collapsed) },
                         onDialog = { dialog = it },
+                        modifier = Modifier
+                            .animateItem(placementSpec = if (reorder.dragging == id) null else spring(stiffness = Spring.StiffnessMediumLow))
+                            .draggedCollection(reorder, id),
                     )
                 }
             }
@@ -365,14 +386,23 @@ private fun CollectionSection(
     collection: SceneCollection,
     mixer: MixerState,
     canMoveScenes: Boolean,
+    reorder: CollectionReorderState,
+    collectionIds: List<String>,
+    onReorderCollections: (List<String>) -> Unit,
+    onReorderScenes: (List<String>) -> Unit,
     onOpenScene: (String) -> Unit,
     onTogglePlay: (Scene) -> Unit,
     onToggleCollapsed: () -> Unit,
     onDialog: (HomeDialog) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val playingHere = collection.scenes.any { it.id == mixer.sceneId } && mixer.playing.isNotEmpty()
-    val arrow by animateFloatAsState(if (collection.collapsed) -90f else 0f, label = "collapse arrow")
-    Column(Modifier.padding(top = 12.dp)) {
+    // While collections are being dragged, every one shows only its header.
+    val folded = collection.collapsed || reorder.reordering
+    val arrow by animateFloatAsState(if (folded) -90f else 0f, label = "collapse arrow")
+    var menuOpen by remember { mutableStateOf(false) }
+    val position = collectionIds.indexOf(collection.id)
+    Column(modifier.padding(top = 12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(start = 8.dp, end = 4.dp)) {
             // The whole title area folds and unfolds the collection.
             Row(
@@ -385,9 +415,19 @@ private fun CollectionSection(
                         role = Role.Button,
                         onClick = onToggleCollapsed,
                     )
+                    // Hold and drag to move the collection; hold and let go for its menu.
+                    .dragToReorder(reorder, collection.id, collectionIds, onReorderCollections, onHold = { menuOpen = true })
                     .semantics {
                         heading()
                         stateDescription = if (collection.collapsed) "Collapsed" else "Expanded"
+                        customActions = listOfNotNull(
+                            CustomAccessibilityAction("Move up") {
+                                onReorderCollections(moved(collectionIds, collection.id, position - 1)); true
+                            }.takeIf { position > 0 },
+                            CustomAccessibilityAction("Move down") {
+                                onReorderCollections(moved(collectionIds, collection.id, position + 1)); true
+                            }.takeIf { position < collectionIds.size - 1 },
+                        )
                     }
                     .padding(vertical = 4.dp, horizontal = 4.dp),
             ) {
@@ -421,7 +461,6 @@ private fun CollectionSection(
                 Icon(Icons.Default.Add, contentDescription = "New scene in ${collection.name}")
             }
             Box {
-                var menuOpen by remember { mutableStateOf(false) }
                 IconButton(onClick = { menuOpen = true }) { Icon(Icons.Default.MoreVert, contentDescription = "Collection options") }
                 DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                     DropdownMenuItem(
@@ -442,36 +481,43 @@ private fun CollectionSection(
                 }
             }
         }
-        AnimatedVisibility(visible = !collection.collapsed, enter = expandVertically(), exit = shrinkVertically()) {
+        AnimatedVisibility(visible = !folded, enter = expandVertically(), exit = shrinkVertically()) {
             // Every scene at once, wrapping into rows: three columns on phones, more on wider screens.
             BoxWithConstraints(Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
                 // With large text, fewer and wider tiles so scene names still fit (at least two columns).
                 val fontScale = LocalDensity.current.fontScale
                 val columns = minOf(maxOf(3, (maxWidth / 150.dp).toInt()), (maxWidth / (110.dp * fontScale)).toInt()).coerceAtLeast(2)
-                Column(verticalArrangement = Arrangement.spacedBy(TileGap)) {
-                    if (collection.scenes.isEmpty()) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(TileGap)) {
-                            NewSceneTile(Modifier.weight(1f), onClick = { onDialog(HomeDialog.NewScene(collection.id)) })
-                            repeat(columns - 1) { Spacer(Modifier.weight(1f)) }
-                        }
+                if (collection.scenes.isEmpty()) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(TileGap)) {
+                        NewSceneTile(Modifier.weight(1f), onClick = { onDialog(HomeDialog.NewScene(collection.id)) })
+                        repeat(columns - 1) { Spacer(Modifier.weight(1f)) }
                     }
-                    collection.scenes.chunked(columns).forEach { row ->
-                        Row(horizontalArrangement = Arrangement.spacedBy(TileGap)) {
-                            row.forEach { scene ->
-                                key(scene.id) {
-                                    SceneTile(
-                                        scene = scene,
-                                        isPlaying = scene.id == mixer.sceneId && mixer.playing.isNotEmpty(),
-                                        canMove = canMoveScenes,
-                                        onOpen = { onOpenScene(scene.id) },
-                                        onTogglePlay = { onTogglePlay(scene) },
-                                        onDialog = onDialog,
-                                        modifier = Modifier.weight(1f),
-                                    )
-                                }
-                            }
-                            repeat(columns - row.size) { Spacer(Modifier.weight(1f)) }
-                        }
+                } else {
+                    // Hold a tile and drag it to a new place; hold and let go for its menu.
+                    var menuFor by remember { mutableStateOf<String?>(null) }
+                    val sceneIds = collection.scenes.map { it.id }
+                    ReorderableGrid(
+                        items = collection.scenes,
+                        id = { it.id },
+                        columns = columns,
+                        gap = TileGap,
+                        onReorder = onReorderScenes,
+                        onHold = { menuFor = it.id },
+                    ) { scene, gestures, _ ->
+                        val index = sceneIds.indexOf(scene.id)
+                        SceneTile(
+                            scene = scene,
+                            isPlaying = scene.id == mixer.sceneId && mixer.playing.isNotEmpty(),
+                            canMove = canMoveScenes,
+                            gestures = gestures,
+                            menuOpen = menuFor == scene.id,
+                            onMenuOpenChange = { menuFor = if (it) scene.id else null },
+                            onMoveEarlier = { onReorderScenes(moved(sceneIds, scene.id, index - 1)) }.takeIf { index > 0 },
+                            onMoveLater = { onReorderScenes(moved(sceneIds, scene.id, index + 1)) }.takeIf { index < sceneIds.size - 1 },
+                            onOpen = { onOpenScene(scene.id) },
+                            onTogglePlay = { onTogglePlay(scene) },
+                            onDialog = onDialog,
+                        )
                     }
                 }
             }
@@ -482,7 +528,7 @@ private fun CollectionSection(
 private val TileShape = RoundedCornerShape(20.dp)
 private val TileGap = 10.dp
 
-/** Tiles fill their grid cell's width and keep the scene art's tall shape. */
+/** Tiles fill their grid cell and keep the scene art's tall shape. */
 private val TileModifier = Modifier.fillMaxWidth().aspectRatio(5f / 7f)
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -491,23 +537,29 @@ private fun SceneTile(
     scene: Scene,
     isPlaying: Boolean,
     canMove: Boolean,
+    gestures: Modifier,
+    menuOpen: Boolean,
+    onMenuOpenChange: (Boolean) -> Unit,
+    onMoveEarlier: (() -> Unit)?,
+    onMoveLater: (() -> Unit)?,
     onOpen: () -> Unit,
     onTogglePlay: () -> Unit,
     onDialog: (HomeDialog) -> Unit,
-    modifier: Modifier = Modifier,
 ) {
-    var menuOpen by remember { mutableStateOf(false) }
-    Box(modifier) {
+    Box {
         Box(
             TileModifier
                 .clip(TileShape)
                 .then(if (isPlaying) Modifier.border(BorderStroke(2.dp, MaterialTheme.colorScheme.primary), TileShape) else Modifier)
-                .combinedClickable(
-                    onClick = onOpen,
-                    onClickLabel = "Open",
-                    onLongClick = { menuOpen = true },
-                    onLongClickLabel = "Rename, move or delete",
-                ),
+                .clickable(onClickLabel = "Open", onClick = onOpen)
+                .then(gestures) // hold and drag to move, hold and let go for the menu
+                .semantics {
+                    onLongClick(label = "Rename, move or delete") { onMenuOpenChange(true); true }
+                    customActions = listOfNotNull(
+                        onMoveEarlier?.let { move -> CustomAccessibilityAction("Move earlier") { move(); true } },
+                        onMoveLater?.let { move -> CustomAccessibilityAction("Move later") { move(); true } },
+                    )
+                },
         ) {
             SceneArt(scene, Modifier.fillMaxSize(), fallbackIconSize = 56.dp)
             BottomScrim()
@@ -557,23 +609,23 @@ private fun SceneTile(
                 }
             }
         }
-        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+        DropdownMenu(expanded = menuOpen, onDismissRequest = { onMenuOpenChange(false) }) {
             DropdownMenuItem(
                 text = { Text("Rename") },
                 leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) },
-                onClick = { menuOpen = false; onDialog(HomeDialog.RenameScene(scene)) },
+                onClick = { onMenuOpenChange(false); onDialog(HomeDialog.RenameScene(scene)) },
             )
             if (canMove) {
                 DropdownMenuItem(
                     text = { Text("Move to collection") },
                     leadingIcon = { Icon(Icons.AutoMirrored.Filled.DriveFileMove, contentDescription = null) },
-                    onClick = { menuOpen = false; onDialog(HomeDialog.MoveScene(scene)) },
+                    onClick = { onMenuOpenChange(false); onDialog(HomeDialog.MoveScene(scene)) },
                 )
             }
             DropdownMenuItem(
                 text = { Text("Delete") },
                 leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null) },
-                onClick = { menuOpen = false; onDialog(HomeDialog.DeleteScene(scene)) },
+                onClick = { onMenuOpenChange(false); onDialog(HomeDialog.DeleteScene(scene)) },
             )
         }
     }

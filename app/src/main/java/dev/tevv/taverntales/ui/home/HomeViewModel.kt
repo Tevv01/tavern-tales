@@ -83,6 +83,10 @@ class HomeViewModel(
 
     fun setCollapsed(collectionId: String, collapsed: Boolean) = repository.setCollapsed(collectionId, collapsed)
 
+    fun setCollectionOrder(ids: List<String>) = repository.setCollectionOrder(ids)
+
+    fun setSceneOrder(collectionId: String, ids: List<String>) = repository.setSceneOrder(collectionId, ids)
+
     fun deleteCollection(collectionId: String) {
         val scenes = library.value.collections.find { it.id == collectionId }?.scenes.orEmpty()
         if (scenes.any { it.id == mixer.state.value.sceneId }) mixer.stopAll()

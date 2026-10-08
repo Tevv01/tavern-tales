@@ -12,6 +12,7 @@ An Android app for running ambience at the tabletop RPG table. Each scene layers
   - **Wilderness**: Forest, Swamp, Blizzard and Ship at sea.
   - **Underground**: Dungeon and Cave.
 - Give any scene a picture from your gallery, and move scenes between collections.
+- Hold and drag to put your scenes and collections in the order you like (hold and let go for a scene's or collection's menu).
 - Each collection shows all its scenes at a glance. Tap a collection's name to fold it away (one for D&D, one for a board game night...); folded collections stay folded and show when one of their scenes is playing.
 
 **Live ambience mixer**
@@ -47,7 +48,7 @@ From 0.2.1 on, releases are signed and install over each other, keeping your sce
 
 - **Find your way**: the app opens on its main menu. **Scenes** leads to everything below; **Credits**, **Privacy** and **Report a bug** are there too.
 - **Play a scene**: tap the play button on a scene's picture, or open it and tap **Play scene**. Switch individual sounds on and off and adjust their volumes on the **Ambience** tab; the **Events** tab has the sound-effect pads.
-- **Organise**: the folder button on the Scenes screen makes a new collection, and **+** next to a collection's name adds a scene to it. Long-press a scene to rename it, move it to another collection or delete it.
+- **Organise**: the folder button on the Scenes screen makes a new collection, and **+** next to a collection's name adds a scene to it. Hold a scene or a collection's name and drag to reorder; hold and let go to rename, move or delete.
 - **Set up Hue lights**: tap the lightbulb on the Scenes screen, connect your bridge and press its link button, then choose the **Room for scene lighting**. Each scene's **Lights** row lets you edit its colours, brightness, flicker and movement.
 - **Back up**: **⋮ → Back up library** on the Scenes screen. Keep the file somewhere safe, such as Google Drive.
 
