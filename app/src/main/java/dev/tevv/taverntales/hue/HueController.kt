@@ -7,6 +7,9 @@ import android.os.Build
 import android.util.AtomicFile
 import android.util.Log
 import dev.tevv.taverntales.model.HueSceneRef
+import dev.tevv.taverntales.model.LightSetup
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
@@ -26,9 +29,22 @@ import kotlinx.serialization.json.Json
 import java.io.File
 import java.util.concurrent.Executors
 
-/** The bridge this app is paired with. [certPin] identifies it on later connections (see [HueApi]). */
+/**
+ * The bridge this app is paired with. [certPin] identifies it on later connections (see [HueApi]).
+ * [group] is the room or zone that light setups made in the app are applied to.
+ */
 @Serializable
-data class HueBridge(val ip: String, val id: String, val name: String, val appKey: String, val certPin: String)
+data class HueBridge(
+    val ip: String,
+    val id: String,
+    val name: String,
+    val appKey: String,
+    val certPin: String,
+    val group: HueGroupRef? = null,
+)
+
+@Serializable
+data class HueGroupRef(val id: String, val type: String, val name: String)
 
 /** A bridge seen on the local network but not necessarily paired. */
 data class FoundBridge(val name: String, val ip: String)
@@ -106,18 +122,53 @@ class HueController(context: Context, private val scope: CoroutineScope) {
         return withBridgeErrors { HueApi(bridge.ip, bridge.certPin).scenes(bridge.appKey) }
     }
 
-    /** Switches the lights to [scene] in the background; failures are reported on [errors]. */
-    fun recall(scene: HueSceneRef) {
+    /** Rooms and zones on the bridge, for choosing where light setups go. */
+    suspend fun groups(): List<HueGroup> {
+        val bridge = _bridge.value ?: throw HueException("No Hue bridge connected")
+        return withBridgeErrors { HueApi(bridge.ip, bridge.certPin).groups(bridge.appKey) }
+            .sortedWith(compareBy({ it.type }, { it.name }))
+    }
+
+    suspend fun setGroup(group: HueGroup) {
         val bridge = _bridge.value ?: return
-        scope.launch {
-            runCatching { withBridgeErrors { HueApi(bridge.ip, bridge.certPin).recall(bridge.appKey, scene.id) } }
-                .onFailure { _errors.tryEmit("Couldn't set the lights to \"${scene.name}\": ${it.message}") }
+        save(bridge.copy(group = HueGroupRef(group.id, group.type, group.name)))
+    }
+
+    /** Switches the lights to [scene] in the background; failures are reported on [errors]. */
+    fun recall(scene: HueSceneRef) = launchLightChange("Couldn't set the lights to \"${scene.name}\"") { bridge, api ->
+        api.recall(bridge.appKey, scene.id)
+    }
+
+    /** Applies a light setup to the chosen room or zone in the background. */
+    fun apply(setup: LightSetup) = launchLightChange("Couldn't set the lights") { bridge, api ->
+        val group = bridge.group ?: throw HueException("choose a room for scene lighting in the Hue settings")
+        val members = api.groups(bridge.appKey).find { it.id == group.id }
+            ?: throw HueException("the room \"${group.name}\" no longer exists; choose another in the Hue settings")
+        val lights = api.lights(bridge.appKey).filter(members::contains)
+        if (lights.isEmpty()) throw HueException("there are no lights in \"${group.name}\"")
+        LightCommands.build(setup, lights).forEach { (lightId, body) ->
+            api.setLight(bridge.appKey, lightId, body.toString())
+            delay(LIGHT_COMMAND_GAP_MS)
+        }
+    }
+
+    private var lightJob: Job? = null
+
+    /** Runs one light change at a time: starting another scene's lights cancels one still being sent. */
+    private fun launchLightChange(failure: String, block: suspend (HueBridge, HueApi) -> Unit) {
+        val bridge = _bridge.value ?: return
+        lightJob?.cancel()
+        lightJob = scope.launch {
+            runCatching { withBridgeErrors { block(bridge, HueApi(bridge.ip, bridge.certPin)) } }
+                .onFailure { if (it !is CancellationException) _errors.tryEmit("$failure: ${it.message}") }
         }
     }
 
     private suspend fun <T> withBridgeErrors(block: suspend () -> T): T = try {
         block()
     } catch (e: HueException) {
+        throw e
+    } catch (e: CancellationException) {
         throw e
     } catch (e: Exception) {
         Log.w(TAG, "Bridge request failed", e)
@@ -171,5 +222,7 @@ class HueController(context: Context, private val scope: CoroutineScope) {
 
     private companion object {
         const val TAG = "HueController"
+        /** The bridge handles about 10 light commands per second; stay under that. */
+        const val LIGHT_COMMAND_GAP_MS = 110L
     }
 }

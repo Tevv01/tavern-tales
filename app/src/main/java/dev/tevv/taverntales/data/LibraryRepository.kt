@@ -4,6 +4,7 @@ import android.util.AtomicFile
 import android.util.Log
 import dev.tevv.taverntales.model.HueSceneRef
 import dev.tevv.taverntales.model.Library
+import dev.tevv.taverntales.model.LightSetup
 import dev.tevv.taverntales.model.Scene
 import dev.tevv.taverntales.model.SceneCollection
 import dev.tevv.taverntales.model.SoundEvent
@@ -40,13 +41,16 @@ import java.io.File
 class LibraryRepository(private val dir: File, scope: CoroutineScope) {
     private val file = File(dir, "library.json")
     private val atomicFile = AtomicFile(file)
+    /** Set while loading when the stored file is missing or in an older format, so it is rewritten. */
+    private var needsSave = false
     private val _library = MutableStateFlow(load())
     val library: StateFlow<Library> = _library.asStateFlow()
 
     init {
         scope.launch {
-            // First run or migration: write the file now so ids created while loading stay stable.
-            if (!file.exists()) save(_library.value)
+            // First run or migration: write the file now, so ids created while loading stay stable and
+            // migrations don't run again on every launch.
+            if (needsSave) save(_library.value)
             _library.drop(1).debounce(SAVE_DEBOUNCE_MS).collect { save(it) }
         }
     }
@@ -79,8 +83,13 @@ class LibraryRepository(private val dir: File, scope: CoroutineScope) {
     fun setBackground(sceneId: String, background: String?) =
         _library.update { lib -> lib.updateScene(sceneId) { it.copy(background = background) } }
 
+    /** Links a Hue app scene; replaces any light setup made in the app. */
     fun setLights(sceneId: String, lights: HueSceneRef?) =
-        _library.update { lib -> lib.updateScene(sceneId) { it.copy(lights = lights) } }
+        _library.update { lib -> lib.updateScene(sceneId) { it.copy(lights = lights, lighting = null) } }
+
+    /** Sets a light setup made in the app; replaces any linked Hue app scene. */
+    fun setLighting(sceneId: String, lighting: LightSetup?) =
+        _library.update { lib -> lib.updateScene(sceneId) { it.copy(lighting = lighting, lights = null) } }
 
     fun moveScene(sceneId: String, toCollectionId: String) = _library.update { it.moveScene(sceneId, toCollectionId) }
 
@@ -109,9 +118,14 @@ class LibraryRepository(private val dir: File, scope: CoroutineScope) {
     private fun load(): Library {
         // The first release stored a flat scene list in scenes.json; it is migrated on read.
         val source = listOf(file, File(dir, LEGACY_FILE)).firstOrNull { it.exists() }
-            ?: return DefaultLibrary.create()
+        if (source == null) {
+            needsSave = true
+            return DefaultLibrary.create()
+        }
         return try {
-            LibraryCodec.decode(AtomicFile(source).readFully().decodeToString())
+            val text = AtomicFile(source).readFully().decodeToString()
+            needsSave = source != file || LibraryCodec.version(text) < LibraryCodec.CURRENT_VERSION
+            LibraryCodec.decode(text)
         } catch (e: Exception) {
             // Keep the unreadable file for recovery instead of overwriting it on the next save.
             Log.e(TAG, "Could not read ${source.name}; moving it aside", e)

@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.tevv.taverntales.hue.FoundBridge
 import dev.tevv.taverntales.hue.HueController
+import dev.tevv.taverntales.hue.HueGroup
 import dev.tevv.taverntales.model.HueSceneRef
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -35,6 +36,19 @@ class HueSetupViewModel(private val hue: HueController) : ViewModel() {
     /** Scenes on the connected bridge (null while loading), shown as a connection check. */
     private val _scenes = MutableStateFlow<Result<List<HueSceneRef>>?>(null)
     val scenes: StateFlow<Result<List<HueSceneRef>>?> = _scenes.asStateFlow()
+
+    /** Rooms and zones for the lighting target picker (null while loading). */
+    private val _groups = MutableStateFlow<Result<List<HueGroup>>?>(null)
+    val groups: StateFlow<Result<List<HueGroup>>?> = _groups.asStateFlow()
+
+    fun loadGroups() {
+        _groups.value = null
+        viewModelScope.launch { _groups.value = runCatching { hue.groups() } }
+    }
+
+    fun setGroup(group: HueGroup) {
+        viewModelScope.launch { hue.setGroup(group) }
+    }
 
     private var searchJob: Job? = null
     private var pairJob: Job? = null

@@ -1,6 +1,8 @@
 package dev.tevv.taverntales.data
 
 import dev.tevv.taverntales.model.Library
+import dev.tevv.taverntales.model.LightSetup
+import dev.tevv.taverntales.model.LightSlot
 import dev.tevv.taverntales.model.Scene
 import dev.tevv.taverntales.model.SceneCollection
 import dev.tevv.taverntales.model.SoundEvent
@@ -17,6 +19,25 @@ object DefaultLibrary {
     fun create(): Library = Library(collections = listOf(collection()), events = events())
 
     fun asset(name: String) = "asset:///sounds/$name.ogg"
+
+    /** Lighting for each built-in scene, keyed like the scene ids (`default-<key>`). */
+    val lighting: Map<String, LightSetup> = mapOf(
+        // Dusk: deep blue sky, violet, and warm lit windows.
+        "town" to LightSetup(listOf(LightSlot("#2B3A8C"), LightSlot("#FFB054"), LightSlot("#6A3D9A")), brightness = 0.45f),
+        // Fireside: amber and orange with candle and fire flicker.
+        "tavern" to LightSetup(
+            listOf(LightSlot("#FF8A2B", "candle"), LightSlot("#FFB060"), LightSlot("#FF5A14", "fire")),
+            brightness = 0.55f,
+        ),
+        // Torchlight against cold gloom.
+        "dungeon" to LightSetup(listOf(LightSlot("#FF7A20", "fire"), LightSlot("#1E2A6A"), LightSlot("#3A2A5A")), brightness = 0.3f),
+        // Bright afternoon sun and sky.
+        "market" to LightSetup(listOf(LightSlot("#FFE2A8"), LightSlot("#FFC86A"), LightSlot("#8FCBFF")), brightness = 0.9f),
+        // Green canopy with sun breaking through.
+        "forest" to LightSetup(listOf(LightSlot("#2FA44A"), LightSlot("#FFE7A0"), LightSlot("#86D660")), brightness = 0.6f),
+        // Dark blue with glowing crystals.
+        "cave" to LightSetup(listOf(LightSlot("#14306E"), LightSlot("#2FD8FF"), LightSlot("#7A3AFF")), brightness = 0.3f),
+    )
 
     fun collection() = SceneCollection(
         id = COLLECTION_ID,
@@ -92,6 +113,7 @@ object DefaultLibrary {
         id = "default-$key",
         name = name,
         background = "builtin:$key",
+        lighting = lighting[key],
         layers = layers.map {
             SoundLayer(
                 id = "default-$key-${it.sound}",

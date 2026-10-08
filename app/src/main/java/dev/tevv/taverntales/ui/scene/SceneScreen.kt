@@ -199,9 +199,10 @@ fun SceneScreen(
                 }
                 item(span = { GridItemSpan(maxLineSpan) }) {
                     LightsRow(
+                        lighting = current.lighting,
                         lights = current.lights,
                         connected = hueBridge != null,
-                        onPick = { if (hueBridge == null) onOpenHueSetup() else pickingLights = true },
+                        onEdit = { if (hueBridge == null) onOpenHueSetup() else pickingLights = true },
                         onApply = viewModel::applyLights,
                     )
                 }
@@ -258,13 +259,18 @@ fun SceneScreen(
     }
 
     if (pickingLights) {
-        HueScenePicker(
-            current = current.lights,
-            scenes = hueScenes,
-            onLoad = viewModel::loadHueScenes,
-            onPick = {
-                viewModel.linkLights(it)
+        LightsSheet(
+            lighting = current.lighting,
+            lights = current.lights,
+            room = hueBridge?.group?.name,
+            hueScenes = hueScenes,
+            onLoadHueScenes = viewModel::loadHueScenes,
+            onSetLighting = viewModel::setLighting,
+            onTryLighting = viewModel::tryLighting,
+            onLinkHueScene = viewModel::linkLights,
+            onChooseRoom = {
                 pickingLights = false
+                onOpenHueSetup()
             },
             onDismiss = { pickingLights = false },
         )

@@ -20,8 +20,11 @@ data class SceneCollection(
  * A table situation (e.g. "Town") with the sound layers that make up its ambience.
  *
  * [background] is either `builtin:<key>` (an image shipped with the app) or a `file://` URI of an
- * image copied into app storage; null means no image. [lights] is the Hue scene recalled when the
- * scene is played.
+ * image copied into app storage; null means no image.
+ *
+ * When the scene is played the lights follow [lighting] (a setup made in this app) or, failing that,
+ * [lights] (a scene made in the Hue app). At most one of them is set; neither means the lights are
+ * left alone.
  */
 @Serializable
 data class Scene(
@@ -30,6 +33,28 @@ data class Scene(
     val layers: List<SoundLayer> = emptyList(),
     val background: String? = null,
     val lights: HueSceneRef? = null,
+    val lighting: LightSetup? = null,
+)
+
+/**
+ * Lighting made in this app, applied to the room or zone chosen in the Hue settings. The [slots]
+ * are spread over that room's lights in turn (light 1 gets slot 1, ...). [brightness] is 0..1, and 0
+ * turns the lights off.
+ */
+@Serializable
+data class LightSetup(
+    val slots: List<LightSlot> = listOf(LightSlot("#FFC27A")),
+    val brightness: Float = 0.6f,
+)
+
+/**
+ * One colour in a [LightSetup], as `#RRGGBB`. [effect] is a Hue light effect such as `candle` or
+ * `fire`; lights that don't support it just show the colour.
+ */
+@Serializable
+data class LightSlot(
+    val color: String,
+    val effect: String? = null,
 )
 
 /**

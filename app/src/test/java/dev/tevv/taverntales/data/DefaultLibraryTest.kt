@@ -27,6 +27,15 @@ class DefaultLibraryTest {
     }
 
     @Test
+    fun everyBuiltinSceneHasLighting() {
+        library.collections.flatMap { it.scenes }.forEach { scene ->
+            val lighting = scene.lighting
+            assertTrue("${scene.name} has no lighting", lighting != null && lighting.slots.isNotEmpty())
+            lighting!!.slots.forEach { assertTrue("${scene.name}: bad colour ${it.color}", Regex("#[0-9A-F]{6}").matches(it.color)) }
+        }
+    }
+
+    @Test
     fun everyBuiltinBackgroundHasAnImage() {
         library.collections.flatMap { it.scenes }.forEach { scene ->
             val key = scene.background!!.removePrefix("builtin:")

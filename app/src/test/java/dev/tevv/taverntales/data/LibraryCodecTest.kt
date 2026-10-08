@@ -68,6 +68,20 @@ class LibraryCodecTest {
     }
 
     @Test
+    fun decode_version2AddsDefaultLightingOnlyWhereLightsAreUnset() {
+        val v2 = """
+            { "version": 2, "events": [], "collections": [ { "id": "default", "name": "Essentials", "scenes": [
+              { "id": "default-tavern", "name": "Tavern" },
+              { "id": "default-town", "name": "Town", "lights": { "id": "hue-1", "name": "Relax" } },
+              { "id": "mine", "name": "Mine" } ] } ] }
+        """.trimIndent()
+        val scenes = LibraryCodec.decode(v2).collections.single().scenes
+        assertEquals(DefaultLibrary.lighting["tavern"], scenes[0].lighting)
+        assertEquals(null, scenes[1].lighting) // user already linked a Hue scene
+        assertEquals(null, scenes[2].lighting) // not a built-in scene
+    }
+
+    @Test
     fun decode_emptyVersion1GivesJustTheDefaults() {
         assertEquals(DefaultLibrary.create(), LibraryCodec.decode("""{ "version": 1, "scenes": [] }"""))
     }

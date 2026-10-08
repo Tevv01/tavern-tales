@@ -36,6 +36,25 @@ sealed interface PairResult {
 data class BridgeInfo(val id: String, val name: String)
 
 /**
+ * A light on the bridge. [ownerId] is the device it belongs to (rooms list devices, zones list
+ * lights). [mirekRange] is set for bulbs with white colour temperature; [effects] are the effects
+ * it supports, e.g. `candle`, `fire`.
+ */
+data class HueLight(
+    val id: String,
+    val ownerId: String?,
+    val name: String,
+    val color: Boolean,
+    val mirekRange: IntRange?,
+    val effects: Set<String>,
+)
+
+/** A room or zone ([type]); [members] are the device or light ids it contains. */
+data class HueGroup(val id: String, val type: String, val name: String, val members: Set<String>) {
+    fun contains(light: HueLight) = light.id in members || light.ownerId in members
+}
+
+/**
  * Minimal client for a Hue bridge on the local network (CLIP API v2, plus the v1 endpoints still
  * needed for pairing and the unauthenticated config).
  *
@@ -66,6 +85,17 @@ class HueApi(private val ip: String, expectedPin: String?) {
         val groups = HueParsing.parseGroupNames(get("/clip/v2/resource/room", appKey)) +
             HueParsing.parseGroupNames(get("/clip/v2/resource/zone", appKey))
         return HueParsing.parseScenes(get("/clip/v2/resource/scene", appKey), groups)
+    }
+
+    suspend fun lights(appKey: String): List<HueLight> = HueParsing.parseLights(get("/clip/v2/resource/light", appKey))
+
+    suspend fun groups(appKey: String): List<HueGroup> =
+        HueParsing.parseGroups(get("/clip/v2/resource/room", appKey), "room") +
+            HueParsing.parseGroups(get("/clip/v2/resource/zone", appKey), "zone")
+
+    suspend fun setLight(appKey: String, lightId: String, body: String) {
+        val response = put("/clip/v2/resource/light/$lightId", body, appKey)
+        HueParsing.v2Errors(response)?.let { throw HueException(it) }
     }
 
     suspend fun recall(appKey: String, sceneId: String) {
@@ -147,6 +177,31 @@ object HueParsing {
                 room = groupId?.let { groupNames[it] },
             )
         }.sortedWith(compareBy({ it.room ?: "￿" }, { it.name }))
+
+    fun parseLights(json: JsonElement): List<HueLight> = data(json).map { item ->
+        val schema = item["color_temperature"]?.jsonObject?.get("mirek_schema")?.jsonObject
+        HueLight(
+            id = item["id"]!!.jsonPrimitive.content,
+            ownerId = item["owner"]?.jsonObject?.get("rid")?.jsonPrimitive?.contentOrNull,
+            name = item["metadata"]?.jsonObject?.get("name")?.jsonPrimitive?.contentOrNull ?: "",
+            color = item["color"] != null,
+            mirekRange = schema?.let {
+                it["mirek_minimum"]!!.jsonPrimitive.int..it["mirek_maximum"]!!.jsonPrimitive.int
+            },
+            effects = item["effects"]?.jsonObject?.get("effect_values")?.jsonArray
+                ?.mapNotNull { it.jsonPrimitive.contentOrNull }?.toSet().orEmpty(),
+        )
+    }
+
+    fun parseGroups(json: JsonElement, type: String): List<HueGroup> = data(json).map { item ->
+        HueGroup(
+            id = item["id"]!!.jsonPrimitive.content,
+            type = type,
+            name = item["metadata"]?.jsonObject?.get("name")?.jsonPrimitive?.contentOrNull ?: "",
+            members = item["children"]?.jsonArray
+                ?.mapNotNull { it.jsonObject["rid"]?.jsonPrimitive?.contentOrNull }?.toSet().orEmpty(),
+        )
+    }
 
     /** The error descriptions in a v2 response, or null if there are none. */
     fun v2Errors(json: JsonElement): String? =

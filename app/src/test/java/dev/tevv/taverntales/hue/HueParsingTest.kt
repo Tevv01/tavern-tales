@@ -65,6 +65,37 @@ class HueParsingTest {
     }
 
     @Test
+    fun parseLights_readsCapabilities() {
+        val lights = HueParsing.parseLights(json("""
+            {"errors":[],"data":[
+              {"id":"l1","type":"light","owner":{"rid":"dev1","rtype":"device"},"metadata":{"name":"Lamp"},
+               "dimming":{"brightness":100.0},
+               "color_temperature":{"mirek":366,"mirek_schema":{"mirek_minimum":153,"mirek_maximum":500}},
+               "color":{"xy":{"x":0.4,"y":0.4},"gamut_type":"C"},
+               "effects":{"effect_values":["no_effect","candle","fire"],"status":"no_effect"}},
+              {"id":"l2","type":"light","owner":{"rid":"dev2","rtype":"device"},"metadata":{"name":"White bulb"},
+               "dimming":{"brightness":50.0}}]}
+        """))
+        assertEquals(HueLight("l1", "dev1", "Lamp", true, 153..500, setOf("no_effect", "candle", "fire")), lights[0])
+        assertEquals(HueLight("l2", "dev2", "White bulb", false, null, emptySet()), lights[1])
+    }
+
+    @Test
+    fun groupsContainLightsByDeviceForRoomsAndByLightForZones() {
+        val room = HueParsing.parseGroups(json("""
+            {"errors":[],"data":[{"id":"r1","metadata":{"name":"Living room"},"children":[{"rid":"dev1","rtype":"device"}]}]}
+        """), "room").single()
+        val zone = HueParsing.parseGroups(json("""
+            {"errors":[],"data":[{"id":"z1","metadata":{"name":"Table"},"children":[{"rid":"l2","rtype":"light"}]}]}
+        """), "zone").single()
+        val l1 = HueLight("l1", "dev1", "Lamp", true, null, emptySet())
+        val l2 = HueLight("l2", "dev2", "Bulb", true, null, emptySet())
+        assertEquals("Living room", room.name)
+        assertEquals(listOf(l1), listOf(l1, l2).filter(room::contains))
+        assertEquals(listOf(l2), listOf(l1, l2).filter(zone::contains))
+    }
+
+    @Test
     fun v2Errors_reportsDescriptionsOrNull() {
         assertNull(HueParsing.v2Errors(json("""{"errors":[],"data":[{"rid":"s1","rtype":"scene"}]}""")))
         assertEquals(

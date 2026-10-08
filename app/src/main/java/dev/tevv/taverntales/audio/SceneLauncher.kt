@@ -11,13 +11,18 @@ import dev.tevv.taverntales.model.SoundLayer
 class SceneLauncher(private val mixer: AmbienceMixer, private val hue: HueController) {
     fun start(scene: Scene) {
         mixer.startScene(scene)
-        scene.lights?.let(hue::recall)
+        applyLights(scene)
+    }
+
+    /** Sets the lights for [scene]: its own light setup if it has one, else its linked Hue scene. */
+    fun applyLights(scene: Scene) {
+        scene.lighting?.let(hue::apply) ?: scene.lights?.let(hue::recall)
     }
 
     /** Toggles one layer; if that makes [scene] the active scene, its lights are switched too. */
     fun toggleLayer(scene: Scene, layer: SoundLayer) {
         val switching = mixer.state.value.sceneId != scene.id
         mixer.toggleLayer(scene.id, layer)
-        if (switching) scene.lights?.let(hue::recall)
+        if (switching) applyLights(scene)
     }
 }

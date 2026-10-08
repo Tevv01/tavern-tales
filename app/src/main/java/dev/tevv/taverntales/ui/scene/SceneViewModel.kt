@@ -10,6 +10,7 @@ import dev.tevv.taverntales.data.BackgroundStore
 import dev.tevv.taverntales.data.LibraryRepository
 import dev.tevv.taverntales.hue.HueController
 import dev.tevv.taverntales.model.HueSceneRef
+import dev.tevv.taverntales.model.LightSetup
 import dev.tevv.taverntales.model.Scene
 import dev.tevv.taverntales.model.SceneCollection
 import dev.tevv.taverntales.model.SoundEvent
@@ -121,8 +122,13 @@ class SceneViewModel(
         ref?.let(hue::recall)
     }
 
+    /** Sets (or with null, removes) this scene's own light setup; replaces a linked Hue scene. */
+    fun setLighting(setup: LightSetup?) = repository.setLighting(sceneId, setup)
+
+    fun tryLighting(setup: LightSetup) = hue.apply(setup)
+
     fun applyLights() {
-        scene.value?.lights?.let(hue::recall)
+        scene.value?.let(launcher::applyLights)
     }
 
     // Layers

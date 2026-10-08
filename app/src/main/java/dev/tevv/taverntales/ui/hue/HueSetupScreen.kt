@@ -45,6 +45,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.tevv.taverntales.hue.FoundBridge
 import dev.tevv.taverntales.hue.HueBridge
 import dev.tevv.taverntales.model.HueSceneRef
+import dev.tevv.taverntales.ui.components.ChoiceDialog
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -54,6 +55,8 @@ fun HueSetupScreen(viewModel: HueSetupViewModel, onBack: () -> Unit) {
     val searching by viewModel.searching.collectAsStateWithLifecycle()
     val pairing by viewModel.pairing.collectAsStateWithLifecycle()
     val scenes by viewModel.scenes.collectAsStateWithLifecycle()
+    val groups by viewModel.groups.collectAsStateWithLifecycle()
+    var choosingRoom by rememberSaveable { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -76,9 +79,42 @@ fun HueSetupScreen(viewModel: HueSetupViewModel, onBack: () -> Unit) {
             val current = bridge
             if (current != null) {
                 Connected(current, scenes, onRetry = viewModel::loadScenes, onDisconnect = viewModel::disconnect)
+                LightingRoom(current, onChoose = {
+                    viewModel.loadGroups()
+                    choosingRoom = true
+                })
             } else {
                 NotConnected(found, searching, onSearch = viewModel::search, onPair = viewModel::pair)
             }
+        }
+    }
+
+    if (choosingRoom) {
+        val loaded = groups
+        when {
+            loaded == null -> AlertDialog(
+                onDismissRequest = { choosingRoom = false },
+                title = { Text("Room for scene lighting") },
+                text = { LinearProgressIndicator(Modifier.fillMaxWidth()) },
+                confirmButton = {},
+            )
+            loaded.isFailure -> AlertDialog(
+                onDismissRequest = { choosingRoom = false },
+                title = { Text("Couldn't load rooms") },
+                text = { Text(loaded.exceptionOrNull()?.message.orEmpty()) },
+                confirmButton = { TextButton(onClick = { choosingRoom = false }) { Text("OK") } },
+            )
+            else -> ChoiceDialog(
+                title = "Room for scene lighting",
+                options = loaded.getOrThrow(),
+                label = { "${it.name} (${it.type})" },
+                selected = loaded.getOrThrow().find { it.id == bridge?.group?.id },
+                onPick = {
+                    viewModel.setGroup(it)
+                    choosingRoom = false
+                },
+                onDismiss = { choosingRoom = false },
+            )
         }
     }
 
@@ -145,6 +181,23 @@ private fun Connected(
         }
     }
     OutlinedButton(onClick = onDisconnect) { Text("Disconnect this bridge") }
+}
+
+@Composable
+private fun LightingRoom(bridge: HueBridge, onChoose: () -> Unit) {
+    Text("Room for scene lighting", style = MaterialTheme.typography.titleMedium)
+    Text(
+        "Light setups made in Tavern Tales (like the ones the built-in scenes come with) are applied to the lights in this room or zone.",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    ListItem(
+        headlineContent = { Text(bridge.group?.name ?: "Not chosen yet") },
+        supportingContent = { Text(bridge.group?.type?.replaceFirstChar { it.uppercase() } ?: "Choose where your table is") },
+        leadingContent = { Icon(Icons.Default.Lightbulb, contentDescription = null) },
+        trailingContent = { Button(onClick = onChoose) { Text(if (bridge.group == null) "Choose" else "Change") } },
+        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+    )
 }
 
 @Composable
