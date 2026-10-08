@@ -1,5 +1,6 @@
 package dev.tevv.taverntales.ui.home
 
+import androidx.compose.foundation.lazy.LazyListState
 import dev.tevv.taverntales.model.Library
 import dev.tevv.taverntales.model.Scene
 import dev.tevv.taverntales.model.SceneCollection
@@ -38,5 +39,15 @@ class ReorderTest {
         val result = library.withSceneOrder("x", listOf("3", "1", "2"))
         assertEquals(listOf("3", "1", "2"), result.collections[0].scenes.map { it.id })
         assertEquals(library.collections.drop(1), result.collections.drop(1))
+    }
+
+    @Test
+    fun aCancelWithoutADragLeavesTheListAlone() {
+        // Collection headers report a cancel when they scroll out of view; that once emptied the list.
+        val state = CollectionReorderState(LazyListState())
+        val ids = listOf("x", "y", "z")
+        assertEquals(null, state.end(ids))
+        assertEquals(false, state.reordering)
+        assertEquals(ids, state.shown(ids))
     }
 }
