@@ -7,6 +7,13 @@
   "source": "https://freesound.org/people/bajko/sounds/385280/"
  },
  {
+  "sound": "blizzard",
+  "title": "Wind__Artic__Cold.wav",
+  "author": "cobratronik",
+  "license": "CC0 1.0",
+  "source": "https://freesound.org/people/cobratronik/sounds/117136/"
+ },
+ {
   "sound": "cave_wind",
   "title": "Ambiance_Atmosphere_Cave_Loop_Stereo.ogg",
   "author": "Nox_Sound",
@@ -105,6 +112,13 @@
   "source": "https://freesound.org/people/keweldog/sounds/181801/"
  },
  {
+  "sound": "great_hall",
+  "title": "people ambience large hall 02.wav",
+  "author": "klankbeeld",
+  "license": "CC0 1.0",
+  "source": "https://freesound.org/people/klankbeeld/sounds/171462/"
+ },
+ {
   "sound": "hearth_fire",
   "title": "Silencyo_CC_Fire in Fireplace_Close Up_Reverberant2.aif",
   "author": "silencyo",
@@ -126,6 +140,20 @@
   "source": "https://freesound.org/people/nikitralala/sounds/239920/"
  },
  {
+  "sound": "mud_bubbles",
+  "title": "gunk bubbling in cave.wav",
+  "author": "rolle Andersson",
+  "license": "CC0 1.0",
+  "source": "https://freesound.org/people/rolle%20Andersson/sounds/436905/"
+ },
+ {
+  "sound": "ocean_waves",
+  "title": "Sailing boat, bow wave (distant perspective)",
+  "author": "Pfannkuchn",
+  "license": "CC0 1.0",
+  "source": "https://freesound.org/people/Pfannkuchn/sounds/360630/"
+ },
+ {
   "sound": "rain",
   "title": "Rain Loop 3",
   "author": "richwise",
@@ -133,11 +161,32 @@
   "source": "https://freesound.org/people/richwise/sounds/584943/"
  },
  {
+  "sound": "seagulls",
+  "title": "Seagulls / gaviotas clean wildtrack.WAV",
+  "author": "Soojay",
+  "license": "CC0 1.0",
+  "source": "https://freesound.org/people/Soojay/sounds/462462/"
+ },
+ {
+  "sound": "ship_creak",
+  "title": "ship_creak.mp3",
+  "author": "Walter_Odington",
+  "license": "CC0 1.0",
+  "source": "https://freesound.org/people/Walter_Odington/sounds/31574/"
+ },
+ {
   "sound": "stream",
   "title": "small stream forest",
   "author": "Yuval",
   "license": "CC0 1.0",
   "source": "https://freesound.org/people/Yuval/sounds/197023/"
+ },
+ {
+  "sound": "swamp_frogs",
+  "title": "FrogsAndCrickets_ExcerptB_JMA_24Bit_48k.wav",
+  "author": "greysound",
+  "license": "CC0 1.0",
+  "source": "https://freesound.org/people/greysound/sounds/32655/"
  },
  {
   "sound": "tavern_chatter",
@@ -152,6 +201,20 @@
   "author": "christislord",
   "license": "CC0 1.0",
   "source": "https://freesound.org/people/christislord/sounds/522992/"
+ },
+ {
+  "sound": "temple_bells",
+  "title": "Bell at Daitokuji temple,kyoto.wav",
+  "author": "nahmandub",
+  "license": "CC0 1.0",
+  "source": "https://freesound.org/people/nahmandub/sounds/131348/"
+ },
+ {
+  "sound": "temple_choir",
+  "title": "Tibetan monks.wav",
+  "author": "nemaavla",
+  "license": "CC0 1.0",
+  "source": "https://freesound.org/people/nemaavla/sounds/344683/"
  },
  {
   "sound": "torches",
@@ -180,5 +243,12 @@
   "author": "felix.blume",
   "license": "CC0 1.0",
   "source": "https://freesound.org/people/felix.blume/sounds/156414/"
+ },
+ {
+  "sound": "wolves",
+  "title": "Cooper Creek 20160313_014852 solitary wolf howl very clear.wav",
+  "author": "betchkal",
+  "license": "CC0 1.0",
+  "source": "https://freesound.org/people/betchkal/sounds/500646/"
  }
 ]

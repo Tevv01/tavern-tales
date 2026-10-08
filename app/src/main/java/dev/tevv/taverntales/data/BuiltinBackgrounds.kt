@@ -13,6 +13,11 @@ object BuiltinBackgrounds {
         "market" to R.drawable.bg_market,
         "forest" to R.drawable.bg_forest,
         "cave" to R.drawable.bg_cave,
+        "ship" to R.drawable.bg_ship,
+        "swamp" to R.drawable.bg_swamp,
+        "castle" to R.drawable.bg_castle,
+        "temple" to R.drawable.bg_temple,
+        "blizzard" to R.drawable.bg_blizzard,
     )
 
     fun isBuiltin(background: String?): Boolean = background?.startsWith(PREFIX) == true

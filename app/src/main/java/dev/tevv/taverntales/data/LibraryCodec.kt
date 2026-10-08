@@ -17,16 +17,17 @@ import kotlinx.serialization.json.jsonPrimitive
  * Reads and writes `library.json`.
  *
  * Versions: 1 = flat `scenes` list (first release); 2 = collections + events; 3 = built-in scenes
- * come with light setups; 4 = light setups can move; 5 = built-in events flash the lights. Older
+ * come with light setups; 4 = light setups can move; 5 = built-in events flash the lights; 6 = the
+ * built-in scenes are grouped by theme, with five new ones. Older
  * files are migrated on read. Bump [CURRENT_VERSION] and add a migration on breaking changes; adding a field
  * with a default value needs neither.
  */
 object LibraryCodec {
-    const val CURRENT_VERSION = 5
+    const val CURRENT_VERSION = 6
 
     @Serializable
     private data class FileV2(
-        val version: Int = CURRENT_VERSION,  // same shape for v2 to v5
+        val version: Int = CURRENT_VERSION,  // same shape for v2 to v6
         val collections: List<SceneCollection> = emptyList(),
         val events: List<SoundEvent> = emptyList(),
     )
@@ -50,9 +51,10 @@ object LibraryCodec {
         val root = json.parseToJsonElement(text).jsonObject
         return when (val version = root["version"]?.jsonPrimitive?.int ?: 1) {
             1 -> migrateV1(json.decodeFromJsonElement<FileV1>(root))
-            2 -> addDefaultFlashes(addDefaultMotion(addDefaultLighting(decodeV2(root))))
-            3 -> addDefaultFlashes(addDefaultMotion(decodeV2(root)))
-            4 -> addDefaultFlashes(decodeV2(root))
+            2 -> regroupBuiltIns(addDefaultFlashes(addDefaultMotion(addDefaultLighting(decodeV2(root)))))
+            3 -> regroupBuiltIns(addDefaultFlashes(addDefaultMotion(decodeV2(root))))
+            4 -> regroupBuiltIns(addDefaultFlashes(decodeV2(root)))
+            5 -> regroupBuiltIns(decodeV2(root))
             CURRENT_VERSION -> json.decodeFromJsonElement<FileV2>(root).let { Library(it.collections, it.events) }
             else -> error("Unsupported library version $version")
         }
@@ -74,6 +76,40 @@ object LibraryCodec {
 
     private fun decodeV2(root: JsonObject) =
         json.decodeFromJsonElement<FileV2>(root).let { Library(it.collections, it.events) }
+
+    /**
+     * v6 replaced the single "Essentials" collection with themed ones and added new scenes. Built-in
+     * scenes still in Essentials move to their themed collection, keeping the user's changes; ones
+     * the user moved elsewhere or deleted stay that way. Essentials stays only if the user's own
+     * scenes are left in it. The themed collections take its place in the list.
+     */
+    private fun regroupBuiltIns(library: Library): Library {
+        val essentials = library.collections.find { it.id == DefaultLibrary.LEGACY_COLLECTION_ID }
+        val kept = essentials?.scenes.orEmpty().filter { it.id in DefaultLibrary.LEGACY_SCENE_IDS }.associateBy { it.id }
+        val themed = DefaultLibrary.collections()
+            .filter { c -> library.collections.none { it.id == c.id } }
+            .map { c ->
+                c.copy(
+                    collapsed = essentials?.collapsed ?: false,
+                    // An original scene comes along only from Essentials; a new one is added as shipped.
+                    scenes = c.scenes.mapNotNull { scene ->
+                        kept[scene.id] ?: scene.takeIf { it.id !in DefaultLibrary.LEGACY_SCENE_IDS }
+                    },
+                )
+            }
+            .filter { it.scenes.isNotEmpty() }
+        val leftover = essentials?.copy(scenes = essentials.scenes.filter { it.id !in kept })
+        if (essentials == null) return library.copy(collections = library.collections + themed)
+        return library.copy(
+            collections = library.collections.flatMap { collection ->
+                if (collection.id != essentials.id) {
+                    listOf(collection)
+                } else {
+                    themed + listOfNotNull(leftover?.takeIf { it.scenes.isNotEmpty() })
+                }
+            },
+        )
+    }
 
     /** v5 gave the built-in events light flashes. */
     private fun addDefaultFlashes(library: Library): Library = library.copy(

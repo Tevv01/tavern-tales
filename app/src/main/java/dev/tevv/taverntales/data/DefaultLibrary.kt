@@ -15,9 +15,28 @@ import dev.tevv.taverntales.model.SoundLayer
  * IDs are stable so built-in content can be recognised later.
  */
 object DefaultLibrary {
-    const val COLLECTION_ID = "default"
+    /** Until format v6 every built-in scene was in this one collection, "Essentials". */
+    const val LEGACY_COLLECTION_ID = "default"
 
-    fun create(): Library = Library(collections = listOf(collection()), events = events())
+    /** The scenes that collection held (format v5 and older). */
+    val LEGACY_SCENE_IDS = listOf("town", "tavern", "dungeon", "market", "forest", "cave").map { "default-$it" }.toSet()
+
+    fun create(): Library = Library(collections = collections(), events = events())
+
+    /**
+     * The built-in scenes, grouped by theme so a collection's scenes belong together: the media
+     * controls' next and previous step through the playing scene's collection.
+     */
+    fun collections(): List<SceneCollection> {
+        val scenes = scenes().associateBy { it.id.removePrefix("default-") }
+        fun collection(id: String, name: String, vararg keys: String) =
+            SceneCollection(id = "default-$id", name = name, scenes = keys.map(scenes::getValue))
+        return listOf(
+            collection("settlements", "Settlements", "town", "tavern", "market", "castle", "temple"),
+            collection("wilderness", "Wilderness", "forest", "swamp", "blizzard", "ship"),
+            collection("underground", "Underground", "dungeon", "cave"),
+        )
+    }
 
     fun asset(name: String) = "asset:///sounds/$name.ogg"
 
@@ -39,56 +58,99 @@ object DefaultLibrary {
         "forest" to LightSetup(listOf(LightSlot("#2FA44A"), LightSlot("#FFE7A0"), LightSlot("#86D660")), brightness = 0.6f, motion = 0.35f),
         // Dark blue with glowing crystals.
         "cave" to LightSetup(listOf(LightSlot("#14306E"), LightSlot("#2FD8FF"), LightSlot("#7A3AFF")), brightness = 0.3f, motion = 0.3f),
+        // Night at sea: deep water, moonlit teal and a swinging lantern.
+        "ship" to LightSetup(listOf(LightSlot("#14306E"), LightSlot("#2FA0C0"), LightSlot("#FFB054", "candle")), brightness = 0.4f, motion = 0.55f),
+        // Murky green with sickly marsh light and violet mist.
+        "swamp" to LightSetup(listOf(LightSlot("#2E5A24"), LightSlot("#9AC850"), LightSlot("#5A3A7A")), brightness = 0.3f, motion = 0.3f),
+        // Torch-lit stone hall with red banners.
+        "castle" to LightSetup(listOf(LightSlot("#FFC27A"), LightSlot("#FF8A2B", "fire"), LightSlot("#C0141E")), brightness = 0.6f, motion = 0.3f),
+        // Candlelight and gold, with a touch of violet.
+        "temple" to LightSetup(listOf(LightSlot("#FFE3B8", "candle"), LightSlot("#FFB054"), LightSlot("#8A5AE0")), brightness = 0.45f, motion = 0.2f),
+        // Cold white and ice blue, gusting.
+        "blizzard" to LightSetup(listOf(LightSlot("#DDE8FF"), LightSlot("#8FCBFF"), LightSlot("#F0F4FF")), brightness = 0.7f, motion = 0.55f),
     )
 
-    fun collection() = SceneCollection(
-        id = COLLECTION_ID,
-        name = "Essentials",
-        scenes = listOf(
-            scene(
-                "town", "Town",
-                Layer("Town crowd", "town_crowd", 0.7f),
-                Layer("Wind", "wind", 0.4f),
-                Layer("Horse carts", "horse_cart", 0.5f),
-                Layer("Rain", "rain", 0.6f, autoPlay = false),
-                Layer("Church bell", "church_bell", 0.7f, autoPlay = false, loop = false),
-            ),
-            scene(
-                "tavern", "Tavern",
-                Layer("Tavern music", "tavern_music", 0.55f),
-                Layer("Tavern chatter", "tavern_chatter", 0.7f),
-                Layer("Hearth fire", "hearth_fire", 0.6f),
-                Layer("Rain outside", "rain", 0.35f, autoPlay = false),
-            ),
-            scene(
-                "dungeon", "Dungeon",
-                Layer("Dark drone", "dark_drone", 0.6f),
-                Layer("Water drips", "water_drips", 0.7f),
-                Layer("Torches", "torches", 0.5f),
-                Layer("Chains", "chains", 0.5f),
-            ),
-            scene(
-                "market", "Market",
-                Layer("Market crowd", "market_crowd", 0.75f),
-                Layer("Horse carts", "horse_cart", 0.45f),
-                Layer("Street musician", "tavern_music", 0.35f, autoPlay = false),
-                Layer("Wind", "wind", 0.3f, autoPlay = false),
-            ),
-            scene(
-                "forest", "Forest",
-                Layer("Birdsong", "birdsong", 0.7f),
-                Layer("Forest breeze", "forest_breeze", 0.5f),
-                Layer("Stream", "stream", 0.45f),
-                Layer("Crickets (night)", "crickets", 0.6f, autoPlay = false),
-                Layer("Rain", "rain", 0.5f, autoPlay = false),
-            ),
-            scene(
-                "cave", "Cave",
-                Layer("Cave wind", "cave_wind", 0.6f),
-                Layer("Water drips", "water_drips", 0.7f),
-                Layer("Deep drone", "dark_drone", 0.4f),
-                Layer("Underground stream", "stream", 0.35f, autoPlay = false),
-            ),
+    private fun scenes() = listOf(
+        scene(
+            "town", "Town",
+            Layer("Town crowd", "town_crowd", 0.7f),
+            Layer("Wind", "wind", 0.4f),
+            Layer("Horse carts", "horse_cart", 0.5f),
+            Layer("Rain", "rain", 0.6f, autoPlay = false),
+            Layer("Church bell", "church_bell", 0.7f, autoPlay = false, loop = false),
+        ),
+        scene(
+            "tavern", "Tavern",
+            Layer("Tavern music", "tavern_music", 0.55f),
+            Layer("Tavern chatter", "tavern_chatter", 0.7f),
+            Layer("Hearth fire", "hearth_fire", 0.6f),
+            Layer("Rain outside", "rain", 0.35f, autoPlay = false),
+        ),
+        scene(
+            "dungeon", "Dungeon",
+            Layer("Dark drone", "dark_drone", 0.6f),
+            Layer("Water drips", "water_drips", 0.7f),
+            Layer("Torches", "torches", 0.5f),
+            Layer("Chains", "chains", 0.5f),
+        ),
+        scene(
+            "market", "Market",
+            Layer("Market crowd", "market_crowd", 0.75f),
+            Layer("Horse carts", "horse_cart", 0.45f),
+            Layer("Street musician", "tavern_music", 0.35f, autoPlay = false),
+            Layer("Wind", "wind", 0.3f, autoPlay = false),
+        ),
+        scene(
+            "forest", "Forest",
+            Layer("Birdsong", "birdsong", 0.7f),
+            Layer("Forest breeze", "forest_breeze", 0.5f),
+            Layer("Stream", "stream", 0.45f),
+            Layer("Crickets (night)", "crickets", 0.6f, autoPlay = false),
+            Layer("Rain", "rain", 0.5f, autoPlay = false),
+        ),
+        scene(
+            "cave", "Cave",
+            Layer("Cave wind", "cave_wind", 0.6f),
+            Layer("Water drips", "water_drips", 0.7f),
+            Layer("Deep drone", "dark_drone", 0.4f),
+            Layer("Underground stream", "stream", 0.35f, autoPlay = false),
+        ),
+        scene(
+            "ship", "Ship at sea",
+            Layer("Waves", "ocean_waves", 0.7f),
+            Layer("Creaking timbers", "ship_creak", 0.55f),
+            Layer("Wind in the sails", "wind", 0.45f),
+            Layer("Seagulls", "seagulls", 0.4f, autoPlay = false),
+            Layer("Storm rain", "rain", 0.6f, autoPlay = false),
+        ),
+        scene(
+            "swamp", "Swamp",
+            Layer("Frogs", "swamp_frogs", 0.7f),
+            Layer("Bubbling mud", "mud_bubbles", 0.5f),
+            Layer("Insects", "crickets", 0.35f),
+            Layer("Dripping water", "water_drips", 0.3f, autoPlay = false),
+            Layer("Rain", "rain", 0.5f, autoPlay = false),
+        ),
+        scene(
+            "castle", "Castle hall",
+            Layer("Great hall", "great_hall", 0.65f),
+            Layer("Hearth fire", "hearth_fire", 0.5f),
+            Layer("Minstrels", "tavern_music", 0.35f, autoPlay = false),
+            Layer("Wind outside", "wind", 0.3f, autoPlay = false),
+        ),
+        scene(
+            "temple", "Temple",
+            Layer("Chanting", "temple_choir", 0.55f),
+            Layer("Temple bell", "temple_bells", 0.6f),
+            Layer("Candles", "torches", 0.3f),
+            Layer("Mountain wind", "wind", 0.3f, autoPlay = false),
+        ),
+        scene(
+            "blizzard", "Blizzard",
+            Layer("Blizzard", "blizzard", 0.75f),
+            Layer("Howling wind", "wind", 0.4f),
+            Layer("Wolves", "wolves", 0.6f, autoPlay = false),
+            Layer("Campfire", "hearth_fire", 0.45f, autoPlay = false),
         ),
     )
 

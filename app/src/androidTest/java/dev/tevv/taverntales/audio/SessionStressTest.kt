@@ -80,7 +80,7 @@ class SessionStressTest {
     private fun session(): Peaks {
         val scope = MainScope()
         val mixer = AmbienceMixer(context, scope)
-        val scenes = DefaultLibrary.collection().scenes
+        val scenes = DefaultLibrary.create().collections.flatMap { it.scenes }
         val events = DefaultLibrary.events()
         var peakThreads = 0
         var peakPss = 0L

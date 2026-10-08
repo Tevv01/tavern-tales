@@ -25,6 +25,8 @@ Manifest fields per sound (only "file" is required to process; the rest feed the
 
 Options: --out DIR (default: the assets folder), --manifest FILE, --credits FILE,
          --credits-only (only regenerate SOUND_CREDITS.md and the app's credits list)
+Arguments: sound names to process only those (default: every manifest entry); the credits always
+           cover every built-in sound. A new sound only needs a manifest entry.
 
 The app's Credits screen reads app/src/main/assets/credits/sounds.json, written alongside
 SOUND_CREDITS.md from the same manifest.
@@ -57,6 +59,8 @@ TARGET_RMS = {
     "tavern_music": -20, "town_crowd": -22, "tavern_chatter": -22, "market_crowd": -21, "rain": -22, "wind": -22,
     "hearth_fire": -24, "torches": -25, "horse_cart": -23, "birdsong": -24, "forest_breeze": -25, "stream": -23,
     "crickets": -27, "water_drips": -26, "dark_drone": -24, "chains": -27, "cave_wind": -24,
+    "ocean_waves": -22, "ship_creak": -26, "seagulls": -27, "swamp_frogs": -25, "mud_bubbles": -27, "great_hall": -22,
+    "temple_choir": -22, "temple_bells": -27, "blizzard": -21, "wolves": -27,
 }
 # One-shots are matched on their loudest 400 ms instead (the synthesized events sit around -12 there).
 EVENT_LOUDEST = -12
@@ -316,12 +320,15 @@ def main():
     parser.add_argument("--manifest", type=Path, default=MANIFEST)
     parser.add_argument("--credits", type=Path, default=CREDITS)
     parser.add_argument("--credits-only", action="store_true")
+    parser.add_argument("sounds", nargs="*", help="only process these (default: every manifest entry)")
     args = parser.parse_args()
     manifest = json.loads(args.manifest.read_text(encoding="utf-8")) if args.manifest.exists() else {}
-    names = sorted(p.stem for p in ASSETS.glob("*.ogg"))
-    for name, entry in ({} if args.credits_only else manifest).items():
-        if name not in names:
-            sys.exit(f"{name}: not a built-in sound (expected one of {', '.join(names)})")
+    names = sorted({p.stem for p in ASSETS.glob("*.ogg")} | set(manifest))
+    for sound in args.sounds:
+        if sound not in manifest:
+            sys.exit(f"{sound}: no entry in {args.manifest.name}")
+    todo = {} if args.credits_only else {k: v for k, v in manifest.items() if not args.sounds or k in args.sounds}
+    for name, entry in todo.items():
         if not (SOURCES / entry["file"]).is_file():
             print(f"  {name}: {entry['file']} not found in sound-sources/, keeping the current file")
             continue
