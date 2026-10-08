@@ -1,6 +1,7 @@
 package dev.tevv.taverntales.data
 
 import dev.tevv.taverntales.model.Library
+import dev.tevv.taverntales.model.LightFlash
 import dev.tevv.taverntales.model.LightSetup
 import dev.tevv.taverntales.model.LightSlot
 import dev.tevv.taverntales.model.Scene
@@ -92,14 +93,25 @@ object DefaultLibrary {
     )
 
     fun events() = listOf(
-        SoundEvent("event-fire", "Fireball", asset("event_fire"), icon = "fire", color = "ember"),
-        SoundEvent("event-explosion", "Explosion", asset("event_explosion"), icon = "explosion", color = "crimson"),
-        SoundEvent("event-light", "Holy light", asset("event_light"), icon = "light", color = "gold"),
-        SoundEvent("event-thunder", "Thunder", asset("event_thunder"), icon = "thunder", color = "azure"),
-        SoundEvent("event-sword", "Sword clash", asset("event_sword"), icon = "sword", color = "steel"),
-        SoundEvent("event-magic", "Arcane spell", asset("event_magic"), icon = "magic", color = "violet"),
-        SoundEvent("event-roar", "Monster roar", asset("event_roar"), icon = "beast", color = "emerald"),
+        SoundEvent("event-fire", "Fireball", asset("event_fire"), icon = "fire", color = "ember", flash = flashes["event-fire"]),
+        SoundEvent("event-explosion", "Explosion", asset("event_explosion"), icon = "explosion", color = "crimson", flash = flashes["event-explosion"]),
+        SoundEvent("event-light", "Holy light", asset("event_light"), icon = "light", color = "gold", flash = flashes["event-light"]),
+        SoundEvent("event-thunder", "Thunder", asset("event_thunder"), icon = "thunder", color = "azure", flash = flashes["event-thunder"]),
+        SoundEvent("event-sword", "Sword clash", asset("event_sword"), icon = "sword", color = "steel", flash = flashes["event-sword"]),
+        SoundEvent("event-magic", "Arcane spell", asset("event_magic"), icon = "magic", color = "violet", flash = flashes["event-magic"]),
+        SoundEvent("event-roar", "Monster roar", asset("event_roar"), icon = "beast", color = "emerald", flash = flashes["event-roar"]),
         SoundEvent("event-arrows", "Arrow volley", asset("event_arrows"), icon = "arrow", color = "umber"),
+    )
+
+    /** Light flashes of the built-in events, by event id. */
+    val flashes: Map<String, LightFlash> = mapOf(
+        "event-fire" to LightFlash(LightFlash.FLASH, "#FF6A14"),
+        "event-explosion" to LightFlash(LightFlash.FLASH, "#FFB46A"),
+        "event-light" to LightFlash(LightFlash.GLOW, "#FFE08A"),
+        "event-thunder" to LightFlash(LightFlash.STROBE, "#DDE8FF"),
+        "event-sword" to LightFlash(LightFlash.FLASH, "#E6EEFF"),
+        "event-magic" to LightFlash(LightFlash.GLOW, "#9B5CFF"),
+        "event-roar" to LightFlash(LightFlash.GLOW, "#C0141E"),
     )
 
     private class Layer(

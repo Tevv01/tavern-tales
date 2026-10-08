@@ -8,7 +8,10 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.doubleOrNull
+import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.int
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -49,8 +52,17 @@ data class HueLight(
     val effects: Set<String>,
 )
 
-/** A room or zone ([type]); [members] are the device or light ids it contains. */
-data class HueGroup(val id: String, val type: String, val name: String, val members: Set<String>) {
+/**
+ * A room or zone ([type]); [members] are the device or light ids it contains. [groupedLightId] is
+ * the resource that controls all its lights with one command.
+ */
+data class HueGroup(
+    val id: String,
+    val type: String,
+    val name: String,
+    val members: Set<String>,
+    val groupedLightId: String? = null,
+) {
     fun contains(light: HueLight) = light.id in members || light.ownerId in members
 }
 
@@ -88,6 +100,17 @@ class HueApi(private val ip: String, expectedPin: String?) {
     }
 
     suspend fun lights(appKey: String): List<HueLight> = HueParsing.parseLights(get("/clip/v2/resource/light", appKey))
+
+    /** Lights with their current state (on, brightness, colour, effect), from one request. */
+    suspend fun lightsWithStates(appKey: String): Pair<List<HueLight>, Map<String, LightState>> {
+        val json = get("/clip/v2/resource/light", appKey)
+        return HueParsing.parseLights(json) to HueParsing.parseLightStates(json)
+    }
+
+    suspend fun setGroupedLight(appKey: String, groupedLightId: String, body: String) {
+        val response = put("/clip/v2/resource/grouped_light/$groupedLightId", body, appKey)
+        HueParsing.v2Errors(response)?.let { throw HueException(it) }
+    }
 
     suspend fun groups(appKey: String): List<HueGroup> =
         HueParsing.parseGroups(get("/clip/v2/resource/room", appKey), "room") +
@@ -200,6 +223,28 @@ object HueParsing {
             name = item["metadata"]?.jsonObject?.get("name")?.jsonPrimitive?.contentOrNull ?: "",
             members = item["children"]?.jsonArray
                 ?.mapNotNull { it.jsonObject["rid"]?.jsonPrimitive?.contentOrNull }?.toSet().orEmpty(),
+            groupedLightId = item["services"]?.jsonArray?.map { it.jsonObject }
+                ?.firstOrNull { it["rtype"]?.jsonPrimitive?.contentOrNull == "grouped_light" }
+                ?.get("rid")?.jsonPrimitive?.contentOrNull,
+        )
+    }
+
+    /** Light id to current state. A colour temperature only counts when the bridge marks it valid. */
+    fun parseLightStates(json: JsonElement): Map<String, LightState> = data(json).associate { item ->
+        val ct = item["color_temperature"]?.jsonObject
+        val mirek = ct?.takeIf { it["mirek_valid"]?.jsonPrimitive?.booleanOrNull == true }
+            ?.get("mirek")?.jsonPrimitive?.intOrNull
+        val xy = item["color"]?.jsonObject?.get("xy")?.jsonObject?.let {
+            val x = it["x"]?.jsonPrimitive?.doubleOrNull
+            val y = it["y"]?.jsonPrimitive?.doubleOrNull
+            if (x != null && y != null) Xy(x, y) else null
+        }
+        item["id"]!!.jsonPrimitive.content to LightState(
+            on = item["on"]?.jsonObject?.get("on")?.jsonPrimitive?.booleanOrNull ?: true,
+            brightness = item["dimming"]?.jsonObject?.get("brightness")?.jsonPrimitive?.doubleOrNull,
+            xy = xy,
+            mirek = mirek,
+            effect = item["effects"]?.jsonObject?.get("status")?.jsonPrimitive?.contentOrNull,
         )
     }
 

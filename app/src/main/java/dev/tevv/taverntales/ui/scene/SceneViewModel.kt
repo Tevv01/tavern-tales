@@ -75,7 +75,7 @@ class SceneViewModel(
 
     fun setMasterVolume(volume: Float) = mixer.setMasterVolume(volume)
 
-    fun playEvent(event: SoundEvent) = mixer.playEvent(event)
+    fun playEvent(event: SoundEvent) = launcher.playEvent(event)
 
     // Scene
 

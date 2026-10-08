@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.AudioFile
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -54,6 +55,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import dev.tevv.taverntales.model.LightFlash
 import dev.tevv.taverntales.model.SoundEvent
 import dev.tevv.taverntales.ui.components.EventColors
 import dev.tevv.taverntales.ui.components.EventIcons
@@ -188,6 +190,37 @@ fun EventEditorSheet(
             Text("Volume", style = MaterialTheme.typography.labelLarge)
             Slider(value = event.volume, onValueChange = { v -> onUpdate { it.copy(volume = v) } })
 
+            Text("Light flash", style = MaterialTheme.typography.labelLarge)
+            Text(
+                "Lights up the room chosen for scene lighting, then returns to the scene's lights.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FilterChip(selected = event.flash == null, onClick = { onUpdate { it.copy(flash = null) } }, label = { Text("None") })
+                FLASH_STYLES.forEach { (style, label) ->
+                    FilterChip(
+                        selected = event.flash?.style == style,
+                        onClick = { onUpdate { it.copy(flash = LightFlash(style, it.flash?.color ?: DEFAULT_FLASH_COLOR)) } },
+                        label = { Text(label) },
+                    )
+                }
+            }
+            event.flash?.let { flash ->
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    FLASH_COLORS.forEach { hex ->
+                        Box(
+                            Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(Color(android.graphics.Color.parseColor(hex)))
+                                .border(if (hex.equals(flash.color, ignoreCase = true)) 3.dp else 0.dp, Color.White, CircleShape)
+                                .clickable { onUpdate { it.copy(flash = flash.copy(color = hex)) } },
+                        )
+                    }
+                }
+            }
+
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedButton(onClick = onPreview, modifier = Modifier.weight(1f)) {
                     Icon(Icons.Default.PlayArrow, contentDescription = null)
@@ -205,3 +238,9 @@ fun EventEditorSheet(
         }
     }
 }
+
+private val FLASH_STYLES = linkedMapOf(LightFlash.FLASH to "Flash", LightFlash.STROBE to "Strobe", LightFlash.GLOW to "Glow")
+private const val DEFAULT_FLASH_COLOR = "#FFFFFF"
+private val FLASH_COLORS = listOf(
+    "#FFFFFF", "#DDE8FF", "#FFE08A", "#FFB46A", "#FF6A14", "#FF2A1A", "#C0141E", "#FF5FA2", "#9B5CFF", "#1E64FF", "#2FD8FF", "#2FA44A",
+)

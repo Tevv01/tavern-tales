@@ -92,6 +92,7 @@ data class SoundLayer(
 /**
  * A one-shot sound effect on the Events tab (fireball, explosion...). Events are global: the same
  * pads are available in every scene. [icon] and [color] are keys into the UI's icon/colour sets.
+ * [flash] optionally lights up the room while the sound plays.
  */
 @Serializable
 data class SoundEvent(
@@ -101,4 +102,22 @@ data class SoundEvent(
     val volume: Float = 0.8f,
     val icon: String = "magic",
     val color: String = "violet",
+    val flash: LightFlash? = null,
 )
+
+/**
+ * A burst of light for an event, in the room chosen for scene lighting: [style] is [FLASH] (one
+ * bright burst), [STROBE] (quick flashes, like lightning) or [GLOW] (a fast swell and fade). [color]
+ * is `#RRGGBB`. Afterwards the lights return to the scene's lighting, or to how they were.
+ */
+@Serializable
+data class LightFlash(
+    val style: String = FLASH,
+    val color: String = "#FFFFFF",
+) {
+    companion object {
+        const val FLASH = "flash"
+        const val STROBE = "strobe"
+        const val GLOW = "glow"
+    }
+}
