@@ -2,6 +2,8 @@
     <string name="app_name">Tavern Tales</string>
     <string name="notification_channel_playback">Playback</string>
     <string name="stop">Stop</string>
+    <string name="previous_scene">Previous scene</string>
+    <string name="next_scene">Next scene</string>
     <plurals name="sounds_playing">
         <item quantity="one">%d sound playing</item>
         <item quantity="other">%d sounds playing</item>
