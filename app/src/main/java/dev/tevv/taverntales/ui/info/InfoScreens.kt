@@ -122,7 +122,10 @@ fun CreditsScreen(onBack: () -> Unit, onOpenLicense: (License) -> Unit) {
     }
 }
 
-/** What Tavern Tales sends where, and the crash-report switch. Mirrors the README's Privacy section. */
+/**
+ * What Tavern Tales sends where, and the crash-report switch. Mirrors the README's Privacy section.
+ * [crashReportsEnabled] is null in builds that can't report (debug): the switch is shown greyed out.
+ */
 @Composable
 fun PrivacyScreen(onBack: () -> Unit, crashReportsEnabled: Boolean?, onCrashReportsChange: (Boolean) -> Unit) {
     val context = LocalContext.current
@@ -139,15 +142,18 @@ fun PrivacyScreen(onBack: () -> Unit, crashReportsEnabled: Boolean?, onCrashRepo
             Bullet("Crash reports, only if you agree (below).")
         }
         Section("Crash reports") {
-            if (crashReportsEnabled != null) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Send crash reports", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                    Switch(checked = crashReportsEnabled, onCheckedChange = onCrashReportsChange)
-                }
-            } else {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Send crash reports", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                Switch(
+                    checked = crashReportsEnabled == true,
+                    onCheckedChange = onCrashReportsChange,
+                    enabled = crashReportsEnabled != null,
+                )
+            }
+            if (crashReportsEnabled == null) {
                 Text(
-                    "This build never sends crash reports.",
-                    style = MaterialTheme.typography.bodyMedium,
+                    "This is a development (debug) build, which never sends crash reports. The switch works in the released app.",
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }

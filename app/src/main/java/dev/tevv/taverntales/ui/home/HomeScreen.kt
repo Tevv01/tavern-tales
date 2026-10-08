@@ -102,7 +102,7 @@ fun HomeScreen(
     onBack: () -> Unit,
     onOpenScene: (sceneId: String) -> Unit,
     onOpenHueSetup: () -> Unit,
-    /** Null when this build can't report crashes (debug builds): the menu item is hidden. */
+    /** Null when this build can't report crashes (debug builds): the menu item is shown greyed out. */
     crashReportsEnabled: Boolean?,
     onCrashReportsChange: (Boolean) -> Unit,
 ) {
@@ -159,19 +159,18 @@ fun HomeScreen(
                                     pickBackup.launch(arrayOf("application/zip", "application/octet-stream"))
                                 },
                             )
-                            if (crashReportsEnabled != null) {
-                                DropdownMenuItem(
-                                    text = { Text("Send crash reports") },
-                                    leadingIcon = { Icon(Icons.Default.BugReport, contentDescription = null) },
-                                    trailingIcon = {
-                                        if (crashReportsEnabled) Icon(Icons.Default.Check, contentDescription = "On")
-                                    },
-                                    onClick = {
-                                        menuOpen = false
-                                        onCrashReportsChange(!crashReportsEnabled)
-                                    },
-                                )
-                            }
+                            DropdownMenuItem(
+                                text = { Text(if (crashReportsEnabled != null) "Send crash reports" else "Crash reports (off in debug builds)") },
+                                leadingIcon = { Icon(Icons.Default.BugReport, contentDescription = null) },
+                                trailingIcon = {
+                                    if (crashReportsEnabled == true) Icon(Icons.Default.Check, contentDescription = "On")
+                                },
+                                enabled = crashReportsEnabled != null,
+                                onClick = {
+                                    menuOpen = false
+                                    crashReportsEnabled?.let { onCrashReportsChange(!it) }
+                                },
+                            )
                         }
                     }
                 },
