@@ -23,6 +23,16 @@ Tavern Tales: an Android-only app (Kotlin, Jetpack Compose, Material 3) for D&D 
 ./gradlew lint
 ```
 
+On-device (instrumented) tests live in `app/src/androidTest`. **Never use `connectedDebugAndroidTest` on the user's phone**: it uninstalls the app when it finishes, wiping the library and Hue pairing (this happened once). Install and run them directly instead, which leaves the app and its data in place:
+
+```sh
+./gradlew installDebug installDebugAndroidTest
+adb shell am instrument -w -e class dev.tevv.taverntales.audio.SessionStressTest \
+    dev.tevv.taverntales.test/androidx.test.runner.AndroidJUnitRunner
+```
+
+`SessionStressTest` plays real audio; mute media volume first (`adb shell cmd media_session volume --stream 3 --set 0`) and restore it after. When driving the app over adb, make a backup from the app first if the user's data could be affected.
+
 ## Build setup notes
 
 - Versions live in `gradle/libs.versions.toml`; add dependencies there, not inline.
