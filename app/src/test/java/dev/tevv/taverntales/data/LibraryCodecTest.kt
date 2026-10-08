@@ -97,6 +97,22 @@ class LibraryCodecTest {
     }
 
     @Test
+    fun decode_version4AddsDefaultFlashesToBuiltInEventsOnly() {
+        val v4 = """
+            { "version": 4, "collections": [], "events": [
+              { "id": "event-thunder", "name": "Thunder", "uri": "asset:///sounds/event_thunder.ogg" },
+              { "id": "event-fire", "name": "Fireball", "uri": "asset:///sounds/event_fire.ogg", "flash": { "style": "glow", "color": "#112233" } },
+              { "id": "event-arrows", "name": "Arrow volley", "uri": "asset:///sounds/event_arrows.ogg" },
+              { "id": "mine", "name": "Door", "uri": "content://door" } ] }
+        """.trimIndent()
+        val events = LibraryCodec.decode(v4).events.associateBy { it.id }
+        assertEquals(DefaultLibrary.flashes["event-thunder"], events.getValue("event-thunder").flash)
+        assertEquals("#112233", events.getValue("event-fire").flash!!.color) // the user's own choice survives
+        assertEquals(null, events.getValue("event-arrows").flash) // built in, but without a flash
+        assertEquals(null, events.getValue("mine").flash)
+    }
+
+    @Test
     fun decode_emptyVersion1GivesJustTheDefaults() {
         assertEquals(DefaultLibrary.create(), LibraryCodec.decode("""{ "version": 1, "scenes": [] }"""))
     }

@@ -7,6 +7,7 @@ import android.os.Build
 import android.util.AtomicFile
 import android.util.Log
 import dev.tevv.taverntales.model.HueSceneRef
+import dev.tevv.taverntales.model.LightFlash
 import dev.tevv.taverntales.model.LightSetup
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.CancellationException
@@ -144,6 +145,7 @@ class HueController(context: Context, private val scope: CoroutineScope) {
 
     /** Switches the lights to [scene] in the background; failures are reported on [messages]. */
     fun recall(scene: HueSceneRef) = launchLightChange("Couldn't set the lights to \"${scene.name}\"") { bridge, api ->
+        flashBaseline = null
         api.recall(bridge.appKey, scene.id)
     }
 
@@ -152,14 +154,63 @@ class HueController(context: Context, private val scope: CoroutineScope) {
      * then keep drifting gently (see [LightSetup.motion]) until the next light change or [stopMotion].
      */
     fun apply(setup: LightSetup, animate: Boolean = false) = launchLightChange("Couldn't set the lights") { bridge, api ->
+        flashBaseline = null
+        val room = room(bridge, api)
+        val lights = api.lights(bridge.appKey).filter(room::contains)
+        if (lights.isEmpty()) throw HueException("there are no lights in \"${room.name}\"")
+        sendSetup(bridge, api, setup, lights, room.name, transitionMs = 1500)
+        if (animate && setup.motion > 0f && setup.brightness > 0f) animate(bridge, api, setup, lights)
+    }
+
+    /**
+     * Lights up the room for an event: the steps go to the room's grouped light so every bulb
+     * changes at once. Afterwards the lights go back to [restoreTo] (the playing scene's light setup,
+     * moving again if [animate]) or, without one, to exactly how they were before the flash.
+     * Does nothing if no room is chosen for scene lighting.
+     */
+    fun flash(flash: LightFlash, restoreTo: LightSetup?, animate: Boolean) = launchLightChange("Couldn't flash the lights") { bridge, api ->
+        if (bridge.group == null) return@launchLightChange
+        val room = room(bridge, api)
+        val groupedLight = room.groupedLightId ?: throw HueException("\"${room.name}\" can't be switched as one group")
+        val (allLights, states) = api.lightsWithStates(bridge.appKey)
+        val lights = allLights.filter(room::contains)
+        // A flash interrupting another must restore to the state before the first one, not mid-flash.
+        val baseline = flashBaseline ?: states.filterKeys { id -> lights.any { it.id == id } }
+        flashBaseline = baseline
+        for (step in LightFlashes.steps(flash)) {
+            api.setGroupedLight(bridge.appKey, groupedLight, step.body.toString())
+            delay(step.holdMs)
+        }
+        val restoreMs = LightFlashes.restoreMs(flash)
+        if (restoreTo != null) {
+            sendSetup(bridge, api, restoreTo, lights, room.name, restoreMs)
+        } else {
+            for (light in lights) {
+                val state = baseline[light.id] ?: continue
+                runCatching { api.setLight(bridge.appKey, light.id, LightFlashes.restore(state, light, restoreMs).toString()) }
+                    .onFailure { if (it is CancellationException) throw it }
+                delay(LIGHT_COMMAND_GAP_MS)
+            }
+        }
+        flashBaseline = null
+        if (restoreTo != null && animate && restoreTo.motion > 0f && restoreTo.brightness > 0f) {
+            animate(bridge, api, restoreTo, lights)
+        }
+    }
+
+    /** Light states captured before a flash that hasn't finished restoring yet. */
+    @Volatile private var flashBaseline: Map<String, LightState>? = null
+
+    private suspend fun room(bridge: HueBridge, api: HueApi): HueGroup {
         val group = bridge.group ?: throw HueException("choose a room for scene lighting in the Hue settings")
-        val members = api.groups(bridge.appKey).find { it.id == group.id }
+        return api.groups(bridge.appKey).find { it.id == group.id }
             ?: throw HueException("the room \"${group.name}\" no longer exists; choose another in the Hue settings")
-        val lights = api.lights(bridge.appKey).filter(members::contains)
-        if (lights.isEmpty()) throw HueException("there are no lights in \"${group.name}\"")
-        // Each light on its own: one that's switched off at the wall mustn't stop the others.
+    }
+
+    /** Sends a light setup to each light on its own: one that's switched off at the wall mustn't stop the others. */
+    private suspend fun sendSetup(bridge: HueBridge, api: HueApi, setup: LightSetup, lights: List<HueLight>, roomName: String, transitionMs: Int) {
         val unresponsive = mutableListOf<HueLight>()
-        LightCommands.build(setup, lights).forEach { (lightId, body) ->
+        LightCommands.build(setup, lights, transitionMs).forEach { (lightId, body) ->
             try {
                 api.setLight(bridge.appKey, lightId, body.toString())
             } catch (e: HueException) {
@@ -168,9 +219,8 @@ class HueController(context: Context, private val scope: CoroutineScope) {
             }
             delay(LIGHT_COMMAND_GAP_MS)
         }
-        if (unresponsive.size == lights.size) throw HueException("none of the lights in \"${group.name}\" responded")
+        if (unresponsive.size == lights.size) throw HueException("none of the lights in \"$roomName\" responded")
         reportUnresponsive(unresponsive)
-        if (animate && setup.motion > 0f && setup.brightness > 0f) animate(bridge, api, setup, lights)
     }
 
     /** Ids of the lights last reported as not responding, so the same ones aren't reported on every scene change. */

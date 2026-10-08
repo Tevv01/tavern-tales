@@ -36,6 +36,16 @@ class DefaultLibraryTest {
     }
 
     @Test
+    fun builtInFlashesHaveValidStylesAndColours() {
+        val styles = setOf("flash", "strobe", "glow")
+        library.events.mapNotNull { it.flash }.forEach { flash ->
+            assertTrue("bad style ${flash.style}", flash.style in styles)
+            assertTrue("bad colour ${flash.color}", Regex("#[0-9A-F]{6}").matches(flash.color))
+        }
+        assertTrue(library.events.count { it.flash != null } >= 6)
+    }
+
+    @Test
     fun everyBuiltinBackgroundHasAnImage() {
         library.collections.flatMap { it.scenes }.forEach { scene ->
             val key = scene.background!!.removePrefix("builtin:")

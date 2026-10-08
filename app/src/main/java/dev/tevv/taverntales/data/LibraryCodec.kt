@@ -7,6 +7,7 @@ import dev.tevv.taverntales.model.SoundEvent
 import dev.tevv.taverntales.model.newId
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.int
 import kotlinx.serialization.json.jsonObject
@@ -16,15 +17,16 @@ import kotlinx.serialization.json.jsonPrimitive
  * Reads and writes `library.json`.
  *
  * Versions: 1 = flat `scenes` list (first release); 2 = collections + events; 3 = built-in scenes
- * come with light setups; 4 = light setups can move. Older files are migrated on read. Bump [CURRENT_VERSION] and add a migration on breaking changes; adding a field
+ * come with light setups; 4 = light setups can move; 5 = built-in events flash the lights. Older
+ * files are migrated on read. Bump [CURRENT_VERSION] and add a migration on breaking changes; adding a field
  * with a default value needs neither.
  */
 object LibraryCodec {
-    const val CURRENT_VERSION = 4
+    const val CURRENT_VERSION = 5
 
     @Serializable
     private data class FileV2(
-        val version: Int = CURRENT_VERSION,  // same shape for v2 to v4
+        val version: Int = CURRENT_VERSION,  // same shape for v2 to v5
         val collections: List<SceneCollection> = emptyList(),
         val events: List<SoundEvent> = emptyList(),
     )
@@ -48,8 +50,9 @@ object LibraryCodec {
         val root = json.parseToJsonElement(text).jsonObject
         return when (val version = root["version"]?.jsonPrimitive?.int ?: 1) {
             1 -> migrateV1(json.decodeFromJsonElement<FileV1>(root))
-            2 -> addDefaultMotion(addDefaultLighting(json.decodeFromJsonElement<FileV2>(root).let { Library(it.collections, it.events) }))
-            3 -> addDefaultMotion(json.decodeFromJsonElement<FileV2>(root).let { Library(it.collections, it.events) })
+            2 -> addDefaultFlashes(addDefaultMotion(addDefaultLighting(decodeV2(root))))
+            3 -> addDefaultFlashes(addDefaultMotion(decodeV2(root)))
+            4 -> addDefaultFlashes(decodeV2(root))
             CURRENT_VERSION -> json.decodeFromJsonElement<FileV2>(root).let { Library(it.collections, it.events) }
             else -> error("Unsupported library version $version")
         }
@@ -66,6 +69,17 @@ object LibraryCodec {
                     scene
                 }
             })
+        },
+    )
+
+    private fun decodeV2(root: JsonObject) =
+        json.decodeFromJsonElement<FileV2>(root).let { Library(it.collections, it.events) }
+
+    /** v5 gave the built-in events light flashes. */
+    private fun addDefaultFlashes(library: Library): Library = library.copy(
+        events = library.events.map { event ->
+            val default = DefaultLibrary.flashes[event.id]
+            if (event.flash == null && default != null) event.copy(flash = default) else event
         },
     )
 
