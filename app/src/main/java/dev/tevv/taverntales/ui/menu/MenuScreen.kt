@@ -16,7 +16,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.MenuBook
+import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.GraphicEq
+import androidx.compose.material.icons.filled.PrivacyTip
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.TheaterComedy
 import androidx.compose.material3.Button
@@ -33,6 +36,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
@@ -41,7 +45,7 @@ import androidx.compose.ui.unit.dp
 import dev.tevv.taverntales.R
 import dev.tevv.taverntales.model.Scene
 
-/** The title screen the app opens on: the way into the scenes, plus credits and privacy. */
+/** The title screen the app opens on: the way into the scenes, plus credits, privacy and bug reports. */
 @Composable
 fun MenuScreen(
     nowPlaying: Scene?,
@@ -49,6 +53,7 @@ fun MenuScreen(
     onScenes: () -> Unit,
     onCredits: () -> Unit,
     onPrivacy: () -> Unit,
+    onReportBug: () -> Unit,
     onOpenNowPlaying: (Scene) -> Unit,
     onStop: () -> Unit,
 ) {
@@ -105,19 +110,34 @@ fun MenuScreen(
                 Text("Scenes", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(start = 12.dp))
             }
             Spacer(Modifier.height(12.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
-                val secondary = ButtonDefaults.outlinedButtonColors(
-                    containerColor = Color.Black.copy(alpha = 0.35f),
-                    contentColor = Color.White,
-                )
-                val padding = PaddingValues(horizontal = 8.dp, vertical = 10.dp)
-                OutlinedButton(onClick = onCredits, colors = secondary, contentPadding = padding, modifier = Modifier.weight(1f)) {
-                    Text("Credits & licences", maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
-                OutlinedButton(onClick = onPrivacy, colors = secondary, contentPadding = padding, modifier = Modifier.weight(1f)) {
-                    Text("Privacy")
-                }
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                MenuTile(Icons.AutoMirrored.Filled.MenuBook, "Credits", onCredits, Modifier.weight(1f))
+                MenuTile(Icons.Default.PrivacyTip, "Privacy", onPrivacy, Modifier.weight(1f))
+                MenuTile(Icons.Default.BugReport, "Report a bug", onReportBug, Modifier.weight(1f))
             }
+        }
+    }
+}
+
+/** A smaller menu button: an icon over a short label. */
+@Composable
+private fun MenuTile(icon: ImageVector, label: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    OutlinedButton(
+        onClick = onClick,
+        shape = RoundedCornerShape(16.dp),
+        colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.Black.copy(alpha = 0.35f), contentColor = Color.White),
+        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 12.dp),
+        modifier = modifier,
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
+            Text(
+                label,
+                style = MaterialTheme.typography.labelLarge,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(top = 6.dp),
+            )
         }
     }
 }

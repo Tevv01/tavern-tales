@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -40,7 +41,7 @@ import androidx.core.net.toUri
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
-private const val REPO_URL = "https://github.com/Tevv01/tavern-tales"
+internal const val REPO_URL = "https://github.com/Tevv01/tavern-tales"
 
 /** A licence text bundled in assets/licenses. */
 enum class License(val title: String, val asset: String) {
@@ -140,6 +141,7 @@ fun PrivacyScreen(onBack: () -> Unit, crashReportsEnabled: Boolean?, onCrashRepo
         Section("What goes over the network") {
             Bullet("Your Hue Bridge, directly on your Wi-Fi. If the bridge can't be found there, the app asks Philips Hue's discovery service (discovery.meethue.com) for its local address, as the Hue app does.")
             Bullet("Crash reports, only if you agree (below).")
+            Bullet("Bug reports, only when you write and send one yourself (below).")
         }
         Section("Crash reports") {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -170,6 +172,17 @@ fun PrivacyScreen(onBack: () -> Unit, crashReportsEnabled: Boolean?, onCrashRepo
                 style = MaterialTheme.typography.bodyMedium,
             )
         }
+        Section("Bug reports") {
+            Text(
+                "When you send a bug report from Report a bug, it goes to the same place as crash reports: your " +
+                    "message, your email if you give one, the app's recent log if you choose to include it, and the " +
+                    "same technical details as a crash report. The log holds technical messages from the app and from " +
+                    "Android while it runs, such as connection or playback errors and system warnings; it doesn't " +
+                    "contain your name, accounts or files. You review the report, every log line included, before " +
+                    "it's sent and can see the complete report afterwards. Sending one doesn't switch on crash reports.",
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        }
         Section("Source code") {
             LinkRow("Tavern Tales on GitHub", REPO_URL, Icons.AutoMirrored.Filled.OpenInNew) {
                 context.startActivity(Intent(Intent.ACTION_VIEW, REPO_URL.toUri()))
@@ -195,7 +208,7 @@ fun LicenseScreen(license: License, onBack: () -> Unit) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun InfoScaffold(title: String, onBack: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
+internal fun InfoScaffold(title: String, onBack: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
     Scaffold(
         containerColor = Color.Transparent,
         contentColor = MaterialTheme.colorScheme.onBackground,
@@ -213,6 +226,7 @@ private fun InfoScaffold(title: String, onBack: () -> Unit, content: @Composable
             Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .imePadding()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
@@ -222,7 +236,7 @@ private fun InfoScaffold(title: String, onBack: () -> Unit, content: @Composable
 }
 
 @Composable
-private fun Section(title: String?, content: @Composable ColumnScope.() -> Unit) {
+internal fun Section(title: String?, content: @Composable ColumnScope.() -> Unit) {
     Surface(
         shape = RoundedCornerShape(18.dp),
         color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.82f),
