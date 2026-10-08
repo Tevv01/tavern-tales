@@ -2,7 +2,7 @@
 
 An Android app for running ambience at the tabletop RPG table. Each scene layers sounds and music that you switch on and mix live, with sound-effect pads for dramatic moments and Philips Hue lights that change with the scene.
 
-**Latest release: [0.2.0](https://github.com/Tevv01/dnd_ambience_app/releases/latest)**. Early development: `main` only holds builds that were tested on a phone.
+**Latest release: [0.2.0](https://github.com/Tevv01/tavern-tales/releases/latest)**. Early development: `main` only holds builds that were tested on a phone.
 
 ## Features
 
@@ -29,7 +29,7 @@ An Android app for running ambience at the tabletop RPG table. Each scene layers
 
 ## Install
 
-1. Download the `.apk` from the [latest release](https://github.com/Tevv01/dnd_ambience_app/releases/latest) on an Android phone (Android 8 or newer).
+1. Download the `.apk` from the [latest release](https://github.com/Tevv01/tavern-tales/releases/latest) on an Android phone (Android 8 or newer).
 2. Open it. You may need to allow installing apps from your browser or file manager.
 
 Newer releases install over older ones and keep your scenes. The current builds are debug-signed test builds; a future signed or Play Store version will need a reinstall, so make a backup first (**⋮ → Back up library**).
