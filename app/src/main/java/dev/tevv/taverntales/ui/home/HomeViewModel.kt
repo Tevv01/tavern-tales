@@ -75,6 +75,8 @@ class HomeViewModel(
 
     fun renameCollection(collectionId: String, name: String) = repository.renameCollection(collectionId, name)
 
+    fun setCollapsed(collectionId: String, collapsed: Boolean) = repository.setCollapsed(collectionId, collapsed)
+
     fun deleteCollection(collectionId: String) {
         val scenes = library.value.collections.find { it.id == collectionId }?.scenes.orEmpty()
         if (scenes.any { it.id == mixer.state.value.sceneId }) mixer.stopAll()

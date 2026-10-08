@@ -3,6 +3,10 @@ package dev.tevv.taverntales.ui.home
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -35,6 +39,7 @@ import androidx.compose.material.icons.filled.CreateNewFolder
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.automirrored.filled.DriveFileMove
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.MoreVert
@@ -66,6 +71,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -204,6 +210,7 @@ fun HomeScreen(
                         canMoveScenes = library.collections.size > 1,
                         onOpenScene = onOpenScene,
                         onTogglePlay = viewModel::togglePlay,
+                        onToggleCollapsed = { viewModel.setCollapsed(collection.id, !collection.collapsed) },
                         onDialog = { dialog = it },
                     )
                 }
@@ -316,17 +323,47 @@ private fun CollectionSection(
     canMoveScenes: Boolean,
     onOpenScene: (String) -> Unit,
     onTogglePlay: (Scene) -> Unit,
+    onToggleCollapsed: () -> Unit,
     onDialog: (HomeDialog) -> Unit,
 ) {
+    val playingHere = collection.scenes.any { it.id == mixer.sceneId } && mixer.playing.isNotEmpty()
+    val arrow by animateFloatAsState(if (collection.collapsed) -90f else 0f, label = "collapse arrow")
     Column(Modifier.padding(top = 12.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(start = 20.dp, end = 4.dp)) {
-            Column(Modifier.weight(1f)) {
-                Text(collection.name, style = MaterialTheme.typography.titleLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(
-                    if (collection.scenes.size == 1) "1 scene" else "${collection.scenes.size} scenes",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(start = 8.dp, end = 4.dp)) {
+            // The whole title area folds and unfolds the collection.
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(12.dp))
+                    .clickable(onClickLabel = if (collection.collapsed) "Show scenes" else "Hide scenes", onClick = onToggleCollapsed)
+                    .padding(vertical = 4.dp, horizontal = 4.dp),
+            ) {
+                Icon(
+                    Icons.Default.ExpandMore,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.rotate(arrow),
                 )
+                Column(Modifier.weight(1f).padding(start = 8.dp)) {
+                    Text(collection.name, style = MaterialTheme.typography.titleLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            if (collection.scenes.size == 1) "1 scene" else "${collection.scenes.size} scenes",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        if (collection.collapsed && playingHere) {
+                            Icon(
+                                Icons.Default.GraphicEq,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(start = 10.dp, end = 4.dp).size(14.dp),
+                            )
+                            Text("Playing", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                        }
+                    }
+                }
             }
             Box {
                 var menuOpen by remember { mutableStateOf(false) }
@@ -350,22 +387,24 @@ private fun CollectionSection(
                 }
             }
         }
-        LazyRow(
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            items(collection.scenes, key = { it.id }) { scene ->
-                SceneTile(
-                    scene = scene,
-                    isPlaying = scene.id == mixer.sceneId && mixer.playing.isNotEmpty(),
-                    canMove = canMoveScenes,
-                    onOpen = { onOpenScene(scene.id) },
-                    onTogglePlay = { onTogglePlay(scene) },
-                    onDialog = onDialog,
-                )
-            }
-            item(key = "new-${collection.id}") {
-                NewSceneTile(onClick = { onDialog(HomeDialog.NewScene(collection.id)) })
+        AnimatedVisibility(visible = !collection.collapsed, enter = expandVertically(), exit = shrinkVertically()) {
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                items(collection.scenes, key = { it.id }) { scene ->
+                    SceneTile(
+                        scene = scene,
+                        isPlaying = scene.id == mixer.sceneId && mixer.playing.isNotEmpty(),
+                        canMove = canMoveScenes,
+                        onOpen = { onOpenScene(scene.id) },
+                        onTogglePlay = { onTogglePlay(scene) },
+                        onDialog = onDialog,
+                    )
+                }
+                item(key = "new-${collection.id}") {
+                    NewSceneTile(onClick = { onDialog(HomeDialog.NewScene(collection.id)) })
+                }
             }
         }
     }
