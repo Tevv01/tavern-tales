@@ -2,7 +2,7 @@
 
 An Android app for running ambience at the tabletop RPG table. Each scene layers sounds and music that you switch on and mix live, with sound-effect pads for dramatic moments and Philips Hue lights that change with the scene.
 
-**Latest release: [0.2.0](https://github.com/Tevv01/tavern-tales/releases/latest)**. Early development: `main` only holds builds that were tested on a phone.
+**Latest release: [0.2.1](https://github.com/Tevv01/tavern-tales/releases/latest)**. Early development: `main` only holds builds that were tested on a phone.
 
 ## Features
 
@@ -32,7 +32,7 @@ An Android app for running ambience at the tabletop RPG table. Each scene layers
 1. Download the `.apk` from the [latest release](https://github.com/Tevv01/tavern-tales/releases/latest) on an Android phone (Android 8 or newer).
 2. Open it. You may need to allow installing apps from your browser or file manager.
 
-Newer releases install over older ones and keep your scenes. The current builds are debug-signed test builds; a future signed or Play Store version will need a reinstall, so make a backup first (**⋮ → Back up library**).
+From 0.2.1 on, releases are signed and install over each other, keeping your scenes. If you have 0.1.0 or 0.2.0 installed (debug-signed test builds), uninstall it once before installing a signed release: make a backup first (**⋮ → Back up library**) and restore it afterwards.
 
 ## Getting started
 
@@ -49,7 +49,7 @@ Newer releases install over older ones and keep your scenes. The current builds 
 ## Planned
 
 - Events that flash the lights (e.g. orange for a fireball).
-- A signed release build, and a public release.
+- A public release on the Play Store.
 
 ## Development
 
