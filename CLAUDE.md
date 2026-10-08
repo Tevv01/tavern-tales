@@ -74,4 +74,14 @@ Single-activity Compose app, no DI framework: `TavernTalesApp` creates an `AppCo
 
 ## Workflow
 
-- `main` only receives features that were tested on a device. Develop on `feature/<name>` branches, push them, and merge to `main` only after the user confirms testing.
+The user's phone has two installs side by side: **Tavern Tales** (`dev.tevv.taverntales`, the signed release they actually use, with their real library and Hue pairing) and **Tavern Tales Debug** (`dev.tevv.taverntales.debug`, for development, with its own data and its own Hue pairing).
+
+1. **Develop** on a `feature/<name>` branch. Test on the phone with the **debug** build only (`./gradlew installDebug`); never install debug or test builds over the real app, and never uninstall it. To test with the user's real library, they back up in the real app and **Restore → Add** in the debug app.
+2. **Merge** to `main` (no fast-forward, with a summary) only after the user confirms the feature works on the phone. Push the branch and `main`. Not every merge needs a release.
+3. **Release** when the user asks:
+   - Smoke-test the shrunk build as **Tavern Tales Test** (`./gradlew assembleReleaseTest`, then `adb install -r` that APK): shrinking problems only show in release builds. Uninstall the test app afterwards if the user wants.
+   - Bump `versionCode` (always +1) and `versionName` (semver: minor for features, patch for fixes) in `app/build.gradle.kts`, and update the version in the README.
+   - Build the signed release (`./gradlew assembleRelease`), verify the signature (`apksigner verify --print-certs`, certificate `CN=Tevv01, O=Tavern Tales`), and `adb install -r` it over the real app: it must update in place (check `firstInstallTime` is unchanged).
+   - Commit "Release X.Y.Z", tag `vX.Y.Z` (annotated), push both, and publish a GitHub release (`gh release create`) with notes for users and the APK attached as `tavern-tales-X.Y.Z.apk`.
+
+Before anything over adb that could affect the real app's data, the user makes a backup from the app. Restore the phone's media volume and settings after tests that change them.
