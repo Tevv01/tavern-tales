@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -40,6 +42,7 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
+import dev.tevv.taverntales.ui.components.READABLE_WIDTH
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
@@ -230,6 +233,9 @@ internal fun InfoScaffold(title: String, onBack: () -> Unit, content: @Composabl
                 .padding(padding)
                 .imePadding()
                 .verticalScroll(rememberScrollState())
+                // Centred and no wider than reads well on a tablet.
+                .wrapContentWidth()
+                .widthIn(max = READABLE_WIDTH)
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
             content = content,

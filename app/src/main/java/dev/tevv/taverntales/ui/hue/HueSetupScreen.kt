@@ -7,6 +7,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -48,6 +50,7 @@ import dev.tevv.taverntales.hue.FoundBridge
 import dev.tevv.taverntales.hue.HueBridge
 import dev.tevv.taverntales.model.HueSceneRef
 import dev.tevv.taverntales.ui.components.ChoiceDialog
+import dev.tevv.taverntales.ui.components.READABLE_WIDTH
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -78,6 +81,8 @@ fun HueSetupScreen(viewModel: HueSetupViewModel, onBack: () -> Unit) {
                 .fillMaxSize()
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
+                .wrapContentWidth()
+                .widthIn(max = READABLE_WIDTH)
                 .padding(horizontal = 20.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
