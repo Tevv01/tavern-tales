@@ -26,10 +26,10 @@ class MainActivity : ComponentActivity() {
         ) {
             requestNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
-        val container = (application as TavernTalesApp).container
+        val app = application as TavernTalesApp
         setContent {
             TavernTalesTheme {
-                TavernTalesNavHost(container)
+                TavernTalesNavHost(app.container, app.crashReporting)
             }
         }
     }

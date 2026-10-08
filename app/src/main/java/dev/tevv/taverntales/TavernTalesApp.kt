@@ -18,8 +18,12 @@ class TavernTalesApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        crashReporting = CrashReporting(this).also { it.start() } // first, so later startup crashes are caught
         container = AppContainer(this)
     }
+
+    lateinit var crashReporting: CrashReporting
+        private set
 }
 
 /** Process-wide singletons. Kept by hand instead of a DI framework while the app is small. */
