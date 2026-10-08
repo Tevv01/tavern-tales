@@ -15,16 +15,18 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -65,6 +67,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -365,6 +368,9 @@ private fun CollectionSection(
                     }
                 }
             }
+            IconButton(onClick = { onDialog(HomeDialog.NewScene(collection.id)) }) {
+                Icon(Icons.Default.Add, contentDescription = "New scene in ${collection.name}")
+            }
             Box {
                 var menuOpen by remember { mutableStateOf(false) }
                 IconButton(onClick = { menuOpen = true }) { Icon(Icons.Default.MoreVert, contentDescription = "Collection options") }
@@ -388,22 +394,34 @@ private fun CollectionSection(
             }
         }
         AnimatedVisibility(visible = !collection.collapsed, enter = expandVertically(), exit = shrinkVertically()) {
-            LazyRow(
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                items(collection.scenes, key = { it.id }) { scene ->
-                    SceneTile(
-                        scene = scene,
-                        isPlaying = scene.id == mixer.sceneId && mixer.playing.isNotEmpty(),
-                        canMove = canMoveScenes,
-                        onOpen = { onOpenScene(scene.id) },
-                        onTogglePlay = { onTogglePlay(scene) },
-                        onDialog = onDialog,
-                    )
-                }
-                item(key = "new-${collection.id}") {
-                    NewSceneTile(onClick = { onDialog(HomeDialog.NewScene(collection.id)) })
+            // Every scene at once, wrapping into rows: three columns on phones, more on wider screens.
+            BoxWithConstraints(Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
+                val columns = maxOf(3, (maxWidth / 150.dp).toInt())
+                Column(verticalArrangement = Arrangement.spacedBy(TileGap)) {
+                    if (collection.scenes.isEmpty()) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(TileGap)) {
+                            NewSceneTile(Modifier.weight(1f), onClick = { onDialog(HomeDialog.NewScene(collection.id)) })
+                            repeat(columns - 1) { Spacer(Modifier.weight(1f)) }
+                        }
+                    }
+                    collection.scenes.chunked(columns).forEach { row ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(TileGap)) {
+                            row.forEach { scene ->
+                                key(scene.id) {
+                                    SceneTile(
+                                        scene = scene,
+                                        isPlaying = scene.id == mixer.sceneId && mixer.playing.isNotEmpty(),
+                                        canMove = canMoveScenes,
+                                        onOpen = { onOpenScene(scene.id) },
+                                        onTogglePlay = { onTogglePlay(scene) },
+                                        onDialog = onDialog,
+                                        modifier = Modifier.weight(1f),
+                                    )
+                                }
+                            }
+                            repeat(columns - row.size) { Spacer(Modifier.weight(1f)) }
+                        }
+                    }
                 }
             }
         }
@@ -411,7 +429,10 @@ private fun CollectionSection(
 }
 
 private val TileShape = RoundedCornerShape(20.dp)
-private val TileModifier = Modifier.size(width = 150.dp, height = 210.dp)
+private val TileGap = 10.dp
+
+/** Tiles fill their grid cell's width and keep the scene art's tall shape. */
+private val TileModifier = Modifier.fillMaxWidth().aspectRatio(5f / 7f)
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -422,9 +443,10 @@ private fun SceneTile(
     onOpen: () -> Unit,
     onTogglePlay: () -> Unit,
     onDialog: (HomeDialog) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     var menuOpen by remember { mutableStateOf(false) }
-    Box {
+    Box(modifier) {
         Box(
             TileModifier
                 .clip(TileShape)
@@ -433,7 +455,7 @@ private fun SceneTile(
         ) {
             SceneArt(scene, Modifier.fillMaxSize(), fallbackIconSize = 56.dp)
             BottomScrim()
-            Column(Modifier.align(Alignment.BottomStart).padding(14.dp)) {
+            Column(Modifier.align(Alignment.BottomStart).padding(10.dp)) {
                 Text(
                     scene.name,
                     style = MaterialTheme.typography.titleMedium,
@@ -457,7 +479,7 @@ private fun SceneTile(
                     Icons.Default.GraphicEq,
                     contentDescription = "Playing",
                     tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.align(Alignment.TopStart).padding(12.dp),
+                    modifier = Modifier.align(Alignment.TopStart).padding(10.dp),
                 )
             }
             if (scene.layers.isNotEmpty()) {
@@ -466,7 +488,7 @@ private fun SceneTile(
                     shape = CircleShape,
                     color = if (isPlaying) MaterialTheme.colorScheme.primary else Color.Black.copy(alpha = 0.45f),
                     contentColor = if (isPlaying) MaterialTheme.colorScheme.onPrimary else Color.White,
-                    modifier = Modifier.align(Alignment.TopEnd).padding(8.dp).size(40.dp),
+                    modifier = Modifier.align(Alignment.TopEnd).padding(6.dp).size(36.dp),
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
@@ -500,9 +522,10 @@ private fun SceneTile(
 }
 
 @Composable
-private fun NewSceneTile(onClick: () -> Unit) {
+private fun NewSceneTile(modifier: Modifier, onClick: () -> Unit) {
     Box(
-        TileModifier
+        modifier
+            .then(TileModifier)
             .clip(TileShape)
             .border(1.dp, MaterialTheme.colorScheme.outlineVariant, TileShape)
             .background(MaterialTheme.colorScheme.surfaceContainerLow)

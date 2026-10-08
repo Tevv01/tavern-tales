@@ -12,7 +12,8 @@ data class LightState(val on: Boolean, val brightness: Double?, val xy: Xy?, val
 /**
  * The commands behind an event's light flash. Pure, so it can be unit-tested. Flash steps go to the
  * room's grouped light (one command, so every bulb changes at the same moment); restoring goes
- * per light.
+ * per light. Bridges only keep up with about one grouped-light command per second and drop or bunch
+ * a faster burst, so steps are at least [MIN_GROUP_GAP_MS] apart.
  */
 object LightFlashes {
     /** One room-wide command, then how long to wait before the next. */
@@ -21,10 +22,11 @@ object LightFlashes {
     fun steps(flash: LightFlash): List<Step> {
         val bright = { transitionMs: Int -> lit(flash.color, transitionMs) }
         return when (flash.style) {
+            // Lightning: a flash, a moment of dark, a second flash, then the lights fade back.
             LightFlash.STROBE -> listOf(
-                Step(bright(0), 110), Step(dark(), 160),
-                Step(bright(0), 110), Step(dark(), 120),
-                Step(bright(0), 350),
+                Step(bright(0), MIN_GROUP_GAP_MS),
+                Step(dark(), MIN_GROUP_GAP_MS),
+                Step(bright(0), 450),
             )
             LightFlash.GLOW -> listOf(Step(bright(GLOW_RISE_MS), GLOW_RISE_MS + 900L))
             else -> listOf(Step(bright(0), 450))
@@ -34,7 +36,7 @@ object LightFlashes {
     /** How long the lights take to fade back afterwards. */
     fun restoreMs(flash: LightFlash): Int = when (flash.style) {
         LightFlash.GLOW -> 1500
-        LightFlash.STROBE -> 400
+        LightFlash.STROBE -> 600
         else -> 700
     }
 
@@ -80,4 +82,7 @@ object LightFlashes {
     }
 
     private const val GLOW_RISE_MS = 500
+
+    /** The shortest time between two grouped-light commands that bridges reliably carry out. */
+    const val MIN_GROUP_GAP_MS = 400L
 }

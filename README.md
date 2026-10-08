@@ -18,7 +18,7 @@ An Android app for running ambience at the tabletop RPG table. Each scene layers
 
 **Events**
 - A pad of sound effects available in every scene: Fireball, Explosion, Holy light, Thunder, Sword clash, Arcane spell, Monster roar and Arrow volley.
-- With Hue connected, events flash the lights: Fireball bursts orange, Thunder strobes white, Holy light glows gold. Afterwards the lights return to the scene.
+- With Hue connected, events flash the lights: Fireball bursts orange, Thunder flickers white like lightning, Holy light glows gold. Afterwards the lights return to the scene.
 - Add your own, and change each pad's name, icon, colour, volume, sound and light flash.
 
 **Philips Hue lighting**

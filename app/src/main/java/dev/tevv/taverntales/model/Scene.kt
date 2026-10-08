@@ -109,7 +109,7 @@ data class SoundEvent(
 
 /**
  * A burst of light for an event, in the room chosen for scene lighting: [style] is [FLASH] (one
- * bright burst), [STROBE] (quick flashes, like lightning) or [GLOW] (a fast swell and fade). [color]
+ * bright burst), [STROBE] (two flashes, like lightning) or [GLOW] (a fast swell and fade). [color]
  * is `#RRGGBB`. Afterwards the lights return to the scene's lighting, or to how they were.
  */
 @Serializable

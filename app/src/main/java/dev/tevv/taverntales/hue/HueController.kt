@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
 import android.os.Build
+import android.os.SystemClock
 import android.util.AtomicFile
 import android.util.Log
 import dev.tevv.taverntales.model.HueSceneRef
@@ -178,8 +179,10 @@ class HueController(context: Context, private val scope: CoroutineScope) {
         val baseline = flashBaseline ?: states.filterKeys { id -> lights.any { it.id == id } }
         flashBaseline = baseline
         for (step in LightFlashes.steps(flash)) {
+            // Holds count from when a command is sent, so a slow reply doesn't stretch the rhythm.
+            val sent = SystemClock.elapsedRealtime()
             api.setGroupedLight(bridge.appKey, groupedLight, step.body.toString())
-            delay(step.holdMs)
+            delay((step.holdMs - (SystemClock.elapsedRealtime() - sent)).coerceAtLeast(0))
         }
         val restoreMs = LightFlashes.restoreMs(flash)
         if (restoreTo != null) {
