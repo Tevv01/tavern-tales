@@ -2,7 +2,7 @@
 
 An Android app for running ambience at the tabletop RPG table. Each scene layers sounds and music that you switch on and mix live, with sound-effect pads for dramatic moments and Philips Hue lights that change with the scene.
 
-**Latest release: [0.2.1](https://github.com/Tevv01/tavern-tales/releases/latest)**. Early development: `main` only holds builds that were tested on a phone.
+**Latest release: [0.3.0](https://github.com/Tevv01/tavern-tales/releases/latest)**. Early development: `main` only holds builds that were tested on a phone.
 
 ## Features
 
@@ -17,7 +17,8 @@ An Android app for running ambience at the tabletop RPG table. Each scene layers
 
 **Events**
 - A pad of sound effects available in every scene: Fireball, Explosion, Holy light, Thunder, Sword clash, Arcane spell, Monster roar and Arrow volley.
-- Add your own, and change each pad's name, icon, colour, volume and sound.
+- With Hue connected, events flash the lights: Fireball bursts orange, Thunder strobes white, Holy light glows gold. Afterwards the lights return to the scene.
+- Add your own, and change each pad's name, icon, colour, volume, sound and light flash.
 
 **Philips Hue lighting**
 - Finds your Hue Bridge on the Wi-Fi and pairs with the link button. Reconnects by itself if the bridge gets a new address.
@@ -61,7 +62,6 @@ The app only talks to the network for:
 
 ## Planned
 
-- Events that flash the lights (e.g. orange for a fireball).
 - A public release on the Play Store.
 
 ## Development
