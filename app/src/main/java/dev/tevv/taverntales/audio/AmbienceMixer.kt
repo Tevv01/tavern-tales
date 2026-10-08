@@ -1,12 +1,19 @@
 package dev.tevv.taverntales.audio
 
 import android.content.Context
+import androidx.annotation.OptIn
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.audio.AudioSink
+import androidx.media3.exoplayer.audio.AudioTrackAudioOutputProvider
+import androidx.media3.exoplayer.audio.DefaultAudioSink
+import androidx.media3.exoplayer.audio.DefaultAudioTrackBufferSizeProvider
 import dev.tevv.taverntales.model.Scene
 import dev.tevv.taverntales.model.SoundEvent
 import dev.tevv.taverntales.model.SoundLayer
@@ -94,7 +101,7 @@ class AmbienceMixer(private val context: Context, private val scope: CoroutineSc
 
     /** Plays an event one-shot on top of whatever is playing. Tapping again overlaps another copy. */
     fun playEvent(event: SoundEvent) {
-        val player = newPlayer()
+        val player = newPlayer(longBuffer = false)
         val voice = EventVoice(event.id, player, event.volume)
         player.addListener(object : Player.Listener {
             override fun onPlayerError(error: PlaybackException) {
@@ -149,7 +156,7 @@ class AmbienceMixer(private val context: Context, private val scope: CoroutineSc
     }
 
     private fun createVoice(layer: SoundLayer): Voice {
-        val player = newPlayer()
+        val player = newPlayer(longBuffer = true)
         val voice = Voice(player, layer.volume)
         player.addListener(object : Player.Listener {
             override fun onPlayerError(error: PlaybackException) {
@@ -172,7 +179,14 @@ class AmbienceMixer(private val context: Context, private val scope: CoroutineSc
         return voice
     }
 
-    private fun newPlayer(): ExoPlayer = ExoPlayer.Builder(context)
+    /**
+     * With [longBuffer] (ambience layers, which play for hours) the audio output buffer holds 2 s
+     * instead of the default 0.5 s, so the player wakes up to refill it a quarter as often. Volume
+     * and fades are applied at the output, so they still react immediately. Event one-shots keep
+     * the default buffer for the quickest start.
+     */
+    @OptIn(UnstableApi::class)
+    private fun newPlayer(longBuffer: Boolean): ExoPlayer = ExoPlayer.Builder(context, renderers(longBuffer))
         // Focus is not requested so layers don't pause each other, and a music app can play alongside.
         .setAudioAttributes(
             AudioAttributes.Builder()
@@ -183,6 +197,23 @@ class AmbienceMixer(private val context: Context, private val scope: CoroutineSc
         )
         .setWakeMode(C.WAKE_MODE_LOCAL)
         .build()
+
+    // Output buffer sizing is only available through Media3's unstable API.
+    @OptIn(UnstableApi::class)
+    private fun renderers(longBuffer: Boolean) = object : DefaultRenderersFactory(context) {
+        override fun buildAudioSink(context: Context, enableFloatOutput: Boolean, enableAudioOutputPlaybackParams: Boolean): AudioSink {
+            val builder = DefaultAudioSink.Builder(context)
+                .setEnableFloatOutput(enableFloatOutput)
+                .setEnableAudioOutputPlaybackParameters(enableAudioOutputPlaybackParams)
+            if (longBuffer) {
+                val bufferSize = DefaultAudioTrackBufferSizeProvider.Builder().setTargetPcmBufferDurationUs(LAYER_OUTPUT_BUFFER_US).build()
+                builder.setAudioOutputProvider(
+                    AudioTrackAudioOutputProvider.Builder(context).setAudioTrackBufferSizeProvider(bufferSize).build(),
+                )
+            }
+            return builder.build()
+        }
+    }
 
     private fun releaseEvent(voice: EventVoice) {
         if (eventVoices.remove(voice)) {
@@ -240,6 +271,7 @@ class AmbienceMixer(private val context: Context, private val scope: CoroutineSc
         private const val FADE_IN_MS = 1500L
         private const val FADE_OUT_MS = 1500L
         private const val FADE_STEP_MS = 40L
+        private const val LAYER_OUTPUT_BUFFER_US = 2_000_000
 
         /** Maps a 0..1 slider position to amplitude gain; squaring makes the slider feel even to the ear. */
         fun gain(slider: Float): Float = slider.coerceIn(0f, 1f).let { it * it }

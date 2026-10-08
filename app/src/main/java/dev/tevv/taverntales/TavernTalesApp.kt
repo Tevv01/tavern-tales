@@ -6,6 +6,7 @@ import dev.tevv.taverntales.audio.AmbienceMixer
 import dev.tevv.taverntales.audio.SceneLauncher
 import dev.tevv.taverntales.data.BackgroundStore
 import dev.tevv.taverntales.data.LibraryRepository
+import dev.tevv.taverntales.data.backup.BackupManager
 import dev.tevv.taverntales.hue.HueController
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -29,4 +30,5 @@ class AppContainer(context: Context) {
     val mixer = AmbienceMixer(context, appScope)
     val hue = HueController(context, appScope)
     val launcher = SceneLauncher(mixer, hue, appScope)
+    val backup = BackupManager(context, library, mixer)
 }

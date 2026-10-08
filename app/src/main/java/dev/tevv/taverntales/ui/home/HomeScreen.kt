@@ -1,5 +1,8 @@
 package dev.tevv.taverntales.ui.home
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -23,6 +26,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Backup
+import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.CreateNewFolder
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.automirrored.filled.DriveFileMove
@@ -32,11 +37,14 @@ import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -47,6 +55,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -70,6 +79,7 @@ import dev.tevv.taverntales.ui.components.ChoiceDialog
 import dev.tevv.taverntales.ui.components.ConfirmDialog
 import dev.tevv.taverntales.ui.components.SceneArt
 import dev.tevv.taverntales.ui.components.TextInputDialog
+import java.time.LocalDate
 
 private sealed interface HomeDialog {
     data object NewCollection : HomeDialog
@@ -93,6 +103,16 @@ fun HomeScreen(
     val mixer by viewModel.mixerState.collectAsStateWithLifecycle()
     var dialog by remember { mutableStateOf<HomeDialog?>(null) }
     val activeScene = mixer.sceneId?.let { library.findScene(it) }
+    val busy by viewModel.busy.collectAsStateWithLifecycle()
+    var restoreFrom by remember { mutableStateOf<Uri?>(null) }
+
+    LaunchedEffect(Unit) { viewModel.messages.collect { snackbar.showSnackbar(it) } }
+    val backUpTo = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
+        if (uri != null) viewModel.backUp(uri)
+    }
+    val pickBackup = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        restoreFrom = uri
+    }
 
     Scaffold(
         topBar = {
@@ -106,6 +126,28 @@ fun HomeScreen(
                     }
                     IconButton(onClick = { dialog = HomeDialog.NewCollection }) {
                         Icon(Icons.Default.CreateNewFolder, contentDescription = "New collection")
+                    }
+                    Box {
+                        var menuOpen by remember { mutableStateOf(false) }
+                        IconButton(onClick = { menuOpen = true }) { Icon(Icons.Default.MoreVert, contentDescription = "More options") }
+                        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                            DropdownMenuItem(
+                                text = { Text("Back up library") },
+                                leadingIcon = { Icon(Icons.Default.Backup, contentDescription = null) },
+                                onClick = {
+                                    menuOpen = false
+                                    backUpTo.launch("Tavern Tales backup ${LocalDate.now()}.zip")
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Restore from backup") },
+                                leadingIcon = { Icon(Icons.Default.Restore, contentDescription = null) },
+                                onClick = {
+                                    menuOpen = false
+                                    pickBackup.launch(arrayOf("application/zip", "application/octet-stream"))
+                                },
+                            )
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
@@ -143,6 +185,42 @@ fun HomeScreen(
                 }
             }
         }
+    }
+
+    restoreFrom?.let { source ->
+        AlertDialog(
+            onDismissRequest = { restoreFrom = null },
+            title = { Text("Restore backup") },
+            text = {
+                Text(
+                    "Replace your library with the backup (for a new phone or a reinstall), or add the backup's " +
+                        "collections and events to what you have now?",
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.restore(source, replace = true)
+                    restoreFrom = null
+                }) { Text("Replace") }
+            },
+            dismissButton = {
+                Row {
+                    TextButton(onClick = { restoreFrom = null }) { Text("Cancel") }
+                    TextButton(onClick = {
+                        viewModel.restore(source, replace = false)
+                        restoreFrom = null
+                    }) { Text("Add") }
+                }
+            },
+        )
+    }
+    busy?.let { label ->
+        AlertDialog(
+            onDismissRequest = {},
+            title = { Text(label) },
+            text = { LinearProgressIndicator(Modifier.fillMaxWidth()) },
+            confirmButton = {},
+        )
     }
 
     when (val d = dialog) {
