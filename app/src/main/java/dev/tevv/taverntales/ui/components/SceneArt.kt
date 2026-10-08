@@ -15,25 +15,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.Dp
 import coil3.compose.AsyncImage
-import dev.tevv.taverntales.R
+import dev.tevv.taverntales.data.BuiltinBackgrounds
 import dev.tevv.taverntales.model.Scene
 import kotlin.math.absoluteValue
 
-private val builtinBackgrounds = mapOf(
-    "town" to R.drawable.bg_town,
-    "tavern" to R.drawable.bg_tavern,
-    "dungeon" to R.drawable.bg_dungeon,
-    "market" to R.drawable.bg_market,
-    "forest" to R.drawable.bg_forest,
-    "cave" to R.drawable.bg_cave,
-)
-
 /** Coil model for a [Scene.background] value: a drawable id for `builtin:` keys, else the file URI. */
-fun backgroundModel(background: String?): Any? = when {
-    background == null -> null
-    background.startsWith("builtin:") -> builtinBackgrounds[background.removePrefix("builtin:")]
-    else -> background
-}
+fun backgroundModel(background: String?): Any? =
+    if (BuiltinBackgrounds.isBuiltin(background)) BuiltinBackgrounds.drawableFor(background) else background
 
 private val fallbackPalettes = listOf(
     Color(0xFF3A2440) to Color(0xFF14100D),

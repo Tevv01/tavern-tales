@@ -3,6 +3,7 @@ package dev.tevv.taverntales
 import android.app.Application
 import android.content.Context
 import dev.tevv.taverntales.audio.AmbienceMixer
+import dev.tevv.taverntales.audio.SceneArtwork
 import dev.tevv.taverntales.audio.SceneLauncher
 import dev.tevv.taverntales.data.BackgroundStore
 import dev.tevv.taverntales.data.LibraryRepository
@@ -37,4 +38,5 @@ class AppContainer(context: Context) {
     val hue = HueController(context, appScope)
     val launcher = SceneLauncher(mixer, hue, library, preferences, appScope)
     val backup = BackupManager(context, library, mixer)
+    val artwork = SceneArtwork(context, appScope)
 }
