@@ -137,7 +137,7 @@ fun TavernTalesNavHost(container: AppContainer, crashReporting: CrashReporting) 
         composable<SceneRoute> { entry ->
             val sceneId = entry.toRoute<SceneRoute>().sceneId
             SceneScreen(
-                viewModel = viewModel { SceneViewModel(sceneId, container.library, container.mixer, container.launcher, container.hue, container.backgrounds) },
+                viewModel = viewModel { SceneViewModel(sceneId, container.library, container.mixer, container.launcher, container.hue, container.backgrounds, container.preferences) },
                 snackbar = snackbar,
                 onBack = { navController.popBackStack() },
                 onOpenHueSetup = { navController.navigate(HueRoute) },

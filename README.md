@@ -16,7 +16,7 @@ An Android app for running ambience at the tabletop RPG table. Each scene layers
 - Each collection shows all its scenes at a glance. Tap a collection's name to fold it away (one for D&D, one for a board game night...); folded collections stay folded and show when one of their scenes is playing.
 
 **Live ambience mixer**
-- Each scene is made of sound layers (crowds, rain, fire, music...) that you switch on and off and mix while it plays. Sounds fade in and out smoothly.
+- Each scene is made of sound layers (crowds, rain, fire, music...) that you switch on and off and mix while it plays. Sounds fade in and out smoothly. Tap the speaker next to **Master** to mute everything at once, and again to bring it back.
 - Switching from one scene to another crossfades the sound and the lights together, so the tavern melts into the forest instead of cutting. Choose how long in **Scenes → ⋮ → Scene changes**: quick (1.5 s), smooth (4 s) or slow (8 s).
 - Plays on with the screen off. The playing scene shows up in Android's media controls (notification, lock screen, quick settings, headset and Bluetooth buttons) with its picture: skip to the previous or next scene in the collection, crossfading as usual, or stop.
 - Add your own audio files. One-shot (non-looping) sounds work for effects like a church bell.
@@ -25,6 +25,7 @@ An Android app for running ambience at the tabletop RPG table. Each scene layers
 - A pad of sound effects available in every scene: Fireball, Explosion, Holy light, Thunder, Sword clash, Arcane spell, Monster roar and Arrow volley.
 - With Hue connected, events flash the lights: Fireball bursts orange, Thunder flickers white like lightning, Holy light glows gold. Afterwards the lights return to the scene.
 - Add your own, and change each pad's name, icon, colour, volume, sound and light flash.
+- Prefer to make the noises yourself? Switch **Event sounds** off at the top of the Events tab and the pads only flash the lights.
 
 **Philips Hue lighting**
 - Finds your Hue Bridge on the Wi-Fi and pairs with the link button. Reconnects by itself if the bridge gets a new address.

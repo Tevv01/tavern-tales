@@ -41,7 +41,12 @@ data class MixerState(
     val playing: Set<String> = emptySet(),
     val events: Set<String> = emptySet(),
     val masterVolume: Float = 1f,
-)
+    /** Silences everything without losing [masterVolume]. */
+    val muted: Boolean = false,
+) {
+    /** The master volume actually applied. */
+    val effectiveMaster: Float get() = if (muted) 0f else masterVolume
+}
 
 /**
  * Plays any number of sound layers at once, one [ExoPlayer] per layer, with fades on start/stop.
@@ -66,6 +71,9 @@ class AmbienceMixer(private val context: Context, private val scope: CoroutineSc
 
     private val voices = mutableMapOf<String, Voice>()
     private val eventVoices = mutableListOf<EventVoice>()
+
+    /** Events shown as sounding for a moment without a sound (event sounds switched off). */
+    private val silentEvents = mutableSetOf<String>()
     private var serviceRunning = false
 
     private val _state = MutableStateFlow(MixerState())
@@ -130,7 +138,7 @@ class AmbienceMixer(private val context: Context, private val scope: CoroutineSc
                 if (playbackState == Player.STATE_ENDED) releaseEvent(voice)
             }
         })
-        player.volume = gain(event.volume) * gain(_state.value.masterVolume)
+        player.volume = gain(event.volume) * gain(_state.value.effectiveMaster)
         player.setMediaItem(MediaItem.fromUri(event.uri))
         player.prepare()
         player.play()
@@ -148,10 +156,32 @@ class AmbienceMixer(private val context: Context, private val scope: CoroutineSc
         voices[layerId]?.player?.repeatMode = repeatModeFor(loop)
     }
 
+    /** Moving the master volume also unmutes. */
     fun setMasterVolume(volume: Float) {
-        _state.update { it.copy(masterVolume = volume) }
+        _state.update { it.copy(masterVolume = volume, muted = false) }
+        applyMaster()
+    }
+
+    fun setMuted(muted: Boolean) {
+        _state.update { it.copy(muted = muted) }
+        applyMaster()
+    }
+
+    private fun applyMaster() {
         voices.values.forEach(::applyVolume)
-        eventVoices.forEach { it.player.volume = gain(it.volume) * gain(volume) }
+        val master = gain(_state.value.effectiveMaster)
+        eventVoices.forEach { it.player.volume = gain(it.volume) * master }
+    }
+
+    /** Shows [event] as sounding for a moment without playing it (its light flash still runs). */
+    fun markEvent(event: SoundEvent) {
+        silentEvents += event.id
+        publishEvents()
+        scope.launch {
+            delay(SILENT_EVENT_MS)
+            silentEvents -= event.id
+            publishEvents()
+        }
     }
 
     /** Fades out everything from the previously active scene over [fadeMs]. */
@@ -240,7 +270,7 @@ class AmbienceMixer(private val context: Context, private val scope: CoroutineSc
     }
 
     private fun publishEvents() {
-        _state.update { it.copy(events = eventVoices.map { v -> v.eventId }.toSet()) }
+        _state.update { it.copy(events = eventVoices.map { v -> v.eventId }.toSet() + silentEvents) }
     }
 
     private fun fade(voice: Voice, target: Float, durationMs: Long, onDone: () -> Unit) {
@@ -267,7 +297,7 @@ class AmbienceMixer(private val context: Context, private val scope: CoroutineSc
     }
 
     private fun applyVolume(voice: Voice) {
-        voice.player.volume = gain(voice.layerVolume) * gain(_state.value.masterVolume) * fadeCurve(voice.fade)
+        voice.player.volume = gain(voice.layerVolume) * gain(_state.value.effectiveMaster) * fadeCurve(voice.fade)
     }
 
     private fun release(layerId: String, voice: Voice) {
@@ -298,6 +328,7 @@ class AmbienceMixer(private val context: Context, private val scope: CoroutineSc
         private const val FADE_OUT_MS = 1500L
         private const val FADE_STEP_MS = 40L
         private const val MAX_LOAD_WAIT_MS = 3_000L
+        private const val SILENT_EVENT_MS = 700L
         private const val LAYER_OUTPUT_BUFFER_US = 2_000_000
 
         /** Maps a 0..1 slider position to amplitude gain; squaring makes the slider feel even to the ear. */

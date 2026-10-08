@@ -65,10 +65,12 @@ class SceneLauncher(
 
     /**
      * Plays an event's sound and, if it has one, its light flash. Afterwards the lights return to the
-     * playing scene's light setup (moving again), or to how they were if there is none.
+     * playing scene's light setup (moving again), or to how they were if there is none. With event
+     * sounds switched off ([Preferences.eventSounds]) only the lights flash, unless [withSound]
+     * forces the sound (previewing an event).
      */
-    fun playEvent(event: SoundEvent) {
-        mixer.playEvent(event)
+    fun playEvent(event: SoundEvent, withSound: Boolean = preferences.eventSounds.value) {
+        if (withSound) mixer.playEvent(event) else mixer.markEvent(event)
         val flash = event.flash ?: return
         val lighting = mixer.state.value.sceneId?.let { library.library.value.findScene(it) }?.lighting
         hue.flash(flash, restoreTo = lighting, animate = lighting != null)

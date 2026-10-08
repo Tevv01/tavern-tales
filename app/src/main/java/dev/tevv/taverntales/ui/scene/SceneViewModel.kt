@@ -8,6 +8,7 @@ import dev.tevv.taverntales.audio.ImportedAudio
 import dev.tevv.taverntales.audio.SceneLauncher
 import dev.tevv.taverntales.data.BackgroundStore
 import dev.tevv.taverntales.data.LibraryRepository
+import dev.tevv.taverntales.data.Preferences
 import dev.tevv.taverntales.hue.HueController
 import dev.tevv.taverntales.model.HueSceneRef
 import dev.tevv.taverntales.model.LightSetup
@@ -38,6 +39,7 @@ class SceneViewModel(
     private val launcher: SceneLauncher,
     private val hue: HueController,
     private val backgrounds: BackgroundStore,
+    private val preferences: Preferences,
 ) : ViewModel() {
     /** Null once the scene has been deleted. */
     val scene: StateFlow<Scene?> = repository.library
@@ -74,6 +76,15 @@ class SceneViewModel(
     }
 
     fun setMasterVolume(volume: Float) = mixer.setMasterVolume(volume)
+
+    fun setMuted(muted: Boolean) = mixer.setMuted(muted)
+
+    val eventSounds = preferences.eventSounds
+
+    fun setEventSounds(on: Boolean) = preferences.setEventSounds(on)
+
+    /** The event editor's Preview always plays the sound. */
+    fun previewEvent(event: SoundEvent) = launcher.playEvent(event, withSound = true)
 
     fun playEvent(event: SoundEvent) = launcher.playEvent(event)
 
