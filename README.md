@@ -2,7 +2,7 @@
 
 An Android app for running ambience at the tabletop RPG table. Each scene layers sounds and music that you switch on and mix live, with sound-effect pads for dramatic moments and Philips Hue lights that change with the scene.
 
-**Latest release: [0.9.0](https://github.com/Tevv01/tavern-tales/releases/latest)**. Early development: `main` only holds builds that were tested on a phone.
+**Latest release: [0.10.0](https://github.com/Tevv01/tavern-tales/releases/latest)**. Early development: `main` only holds builds that were tested on a phone.
 
 ## Features
 
