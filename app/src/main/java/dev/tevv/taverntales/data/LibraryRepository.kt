@@ -2,6 +2,7 @@ package dev.tevv.taverntales.data
 
 import android.util.AtomicFile
 import android.util.Log
+import dev.tevv.taverntales.data.backup.BackupFormat
 import dev.tevv.taverntales.model.HueSceneRef
 import dev.tevv.taverntales.model.Library
 import dev.tevv.taverntales.model.LightSetup
@@ -54,6 +55,12 @@ class LibraryRepository(private val dir: File, scope: CoroutineScope) {
             _library.drop(1).debounce(SAVE_DEBOUNCE_MS).collect { save(it) }
         }
     }
+
+    // Whole library (backup restore)
+
+    fun replace(library: Library) = _library.update { library }
+
+    fun merge(library: Library) = _library.update { BackupFormat.merge(it, library) }
 
     // Collections
 

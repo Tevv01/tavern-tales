@@ -42,7 +42,7 @@ fun TavernTalesNavHost(container: AppContainer) {
     NavHost(navController, startDestination = HomeRoute) {
         composable<HomeRoute> {
             HomeScreen(
-                viewModel = viewModel { HomeViewModel(container.library, container.mixer, container.launcher, container.backgrounds) },
+                viewModel = viewModel { HomeViewModel(container.library, container.mixer, container.launcher, container.backgrounds, container.backup) },
                 snackbar = snackbar,
                 onOpenScene = { navController.navigate(SceneRoute(it)) },
                 onOpenHueSetup = { navController.navigate(HueRoute) },
