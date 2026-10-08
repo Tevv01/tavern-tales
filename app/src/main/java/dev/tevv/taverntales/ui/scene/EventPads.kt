@@ -22,6 +22,8 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -51,12 +53,18 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.tevv.taverntales.model.LightFlash
 import dev.tevv.taverntales.model.SoundEvent
+import dev.tevv.taverntales.ui.components.ColorChoice
 import dev.tevv.taverntales.ui.components.EventColors
 import dev.tevv.taverntales.ui.components.EventIcons
 import dev.tevv.taverntales.ui.components.eventColor
@@ -80,8 +88,17 @@ fun EventPad(event: SoundEvent, isPlaying: Boolean, onPlay: () -> Unit, onEdit: 
             .graphicsLayer { scaleX = scale; scaleY = scale }
             .clip(PadShape)
             .background(Brush.linearGradient(listOf(color.copy(alpha = 0.95f), color.copy(alpha = 0.4f))))
+            // Darkens the middle so the white icon and name stay readable on light colours like gold.
+            .background(Brush.radialGradient(0f to Color.Black.copy(alpha = 0.42f), 0.8f to Color.Black.copy(alpha = 0.25f), 1f to Color.Transparent))
             .border(if (isPlaying) 2.dp else 1.dp, if (isPlaying) Color.White else color.copy(alpha = 0.7f), PadShape)
-            .combinedClickable(onClick = onPlay, onLongClick = onEdit, onLongClickLabel = "Edit ${event.name}"),
+            .combinedClickable(
+                onClick = onPlay,
+                onClickLabel = "Play",
+                role = Role.Button,
+                onLongClick = onEdit,
+                onLongClickLabel = "Edit ${event.name}",
+            )
+            .semantics { if (isPlaying) stateDescription = "Playing" },
         contentAlignment = Alignment.Center,
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(8.dp)) {
@@ -137,7 +154,7 @@ fun EventEditorSheet(
                 .padding(bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text("Edit event", style = MaterialTheme.typography.titleLarge)
+            Text("Edit event", style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
             Text(
                 "Events are shared by all scenes.",
                 style = MaterialTheme.typography.bodySmall,
@@ -156,7 +173,11 @@ fun EventEditorSheet(
             )
 
             Text("Icon", style = MaterialTheme.typography.labelLarge)
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.selectableGroup(),
+            ) {
                 EventIcons.forEach { (key, icon) ->
                     val selected = key == event.icon
                     Box(
@@ -164,31 +185,40 @@ fun EventEditorSheet(
                             .size(48.dp)
                             .clip(CircleShape)
                             .background(if (selected) eventColor(event.color) else MaterialTheme.colorScheme.surfaceContainerHighest)
-                            .clickable { onUpdate { it.copy(icon = key) } },
+                            .selectable(selected = selected, role = Role.RadioButton) { onUpdate { it.copy(icon = key) } },
                         contentAlignment = Alignment.Center,
                     ) {
-                        Icon(icon, contentDescription = key, tint = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant)
+                        Icon(
+                            icon,
+                            contentDescription = key.replaceFirstChar { it.uppercase() },
+                            tint = if (selected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
                 }
             }
 
             Text("Colour", style = MaterialTheme.typography.labelLarge)
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(2.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+                modifier = Modifier.selectableGroup(),
+            ) {
                 EventColors.forEach { (key, color) ->
-                    val selected = key == event.color
-                    Box(
-                        Modifier
-                            .size(40.dp)
-                            .clip(CircleShape)
-                            .background(color)
-                            .border(if (selected) 3.dp else 0.dp, Color.White, CircleShape)
-                            .clickable { onUpdate { it.copy(color = key) } },
+                    ColorChoice(
+                        color = color,
+                        name = key.replaceFirstChar { it.uppercase() },
+                        selected = key == event.color,
+                        onClick = { onUpdate { it.copy(color = key) } },
                     )
                 }
             }
 
             Text("Volume", style = MaterialTheme.typography.labelLarge)
-            Slider(value = event.volume, onValueChange = { v -> onUpdate { it.copy(volume = v) } })
+            Slider(
+                value = event.volume,
+                onValueChange = { v -> onUpdate { it.copy(volume = v) } },
+                modifier = Modifier.semantics { contentDescription = "Volume" },
+            )
 
             Text("Light flash", style = MaterialTheme.typography.labelLarge)
             Text(
@@ -207,15 +237,18 @@ fun EventEditorSheet(
                 }
             }
             event.flash?.let { flash ->
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    FLASH_COLORS.forEach { hex ->
-                        Box(
-                            Modifier
-                                .size(36.dp)
-                                .clip(CircleShape)
-                                .background(Color(android.graphics.Color.parseColor(hex)))
-                                .border(if (hex.equals(flash.color, ignoreCase = true)) 3.dp else 0.dp, Color.White, CircleShape)
-                                .clickable { onUpdate { it.copy(flash = flash.copy(color = hex)) } },
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(2.dp),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                    modifier = Modifier.selectableGroup(),
+                ) {
+                    FLASH_COLORS.forEach { (hex, name) ->
+                        ColorChoice(
+                            color = Color(android.graphics.Color.parseColor(hex)),
+                            name = "$name flash",
+                            selected = hex.equals(flash.color, ignoreCase = true),
+                            onClick = { onUpdate { it.copy(flash = flash.copy(color = hex)) } },
+                            size = 36.dp,
                         )
                     }
                 }
@@ -241,6 +274,9 @@ fun EventEditorSheet(
 
 private val FLASH_STYLES = linkedMapOf(LightFlash.FLASH to "Flash", LightFlash.STROBE to "Strobe", LightFlash.GLOW to "Glow")
 private const val DEFAULT_FLASH_COLOR = "#FFFFFF"
+/** Flash colours offered in the editor, with the names screen readers use. */
 private val FLASH_COLORS = listOf(
-    "#FFFFFF", "#DDE8FF", "#FFE08A", "#FFB46A", "#FF6A14", "#FF2A1A", "#C0141E", "#FF5FA2", "#9B5CFF", "#1E64FF", "#2FD8FF", "#2FA44A",
+    "#FFFFFF" to "White", "#DDE8FF" to "Cool white", "#FFE08A" to "Warm yellow", "#FFB46A" to "Amber",
+    "#FF6A14" to "Orange", "#FF2A1A" to "Red", "#C0141E" to "Crimson", "#FF5FA2" to "Pink",
+    "#9B5CFF" to "Violet", "#1E64FF" to "Blue", "#2FD8FF" to "Cyan", "#2FA44A" to "Green",
 )

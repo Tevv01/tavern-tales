@@ -5,9 +5,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -39,6 +41,8 @@ import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -87,6 +91,7 @@ fun MenuScreen(
                 ),
                 color = MaterialTheme.colorScheme.primary,
                 textAlign = TextAlign.Center,
+                modifier = Modifier.semantics { heading() },
             )
             Text(
                 "Ambience, effects and lights for your table",
@@ -110,10 +115,11 @@ fun MenuScreen(
                 Text("Scenes", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(start = 12.dp))
             }
             Spacer(Modifier.height(12.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
-                MenuTile(Icons.AutoMirrored.Filled.MenuBook, "Credits", onCredits, Modifier.weight(1f))
-                MenuTile(Icons.Default.PrivacyTip, "Privacy", onPrivacy, Modifier.weight(1f))
-                MenuTile(Icons.Default.BugReport, "Report a bug", onReportBug, Modifier.weight(1f))
+            // Equal heights, also when large text wraps one label onto two lines.
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Max)) {
+                MenuTile(Icons.AutoMirrored.Filled.MenuBook, "Credits", onCredits, Modifier.weight(1f).fillMaxHeight())
+                MenuTile(Icons.Default.PrivacyTip, "Privacy", onPrivacy, Modifier.weight(1f).fillMaxHeight())
+                MenuTile(Icons.Default.BugReport, "Report a bug", onReportBug, Modifier.weight(1f).fillMaxHeight())
             }
         }
     }
@@ -131,10 +137,12 @@ private fun MenuTile(icon: ImageVector, label: String, onClick: () -> Unit, modi
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
+            // Two lines, so "Report a bug" still fits with large text.
             Text(
                 label,
                 style = MaterialTheme.typography.labelLarge,
-                maxLines = 1,
+                textAlign = TextAlign.Center,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.padding(top = 6.dp),
             )

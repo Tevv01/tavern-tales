@@ -32,14 +32,13 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.DriveFileMove
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.CreateNewFolder
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.automirrored.filled.DriveFileMove
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.GraphicEq
@@ -47,6 +46,7 @@ import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.PrivacyTip
+import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
@@ -54,15 +54,15 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -77,6 +77,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -138,7 +143,12 @@ fun HomeScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Text("Scenes", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primary)
+                    Text(
+                        "Scenes",
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.semantics { heading() },
+                    )
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back to the menu") }
@@ -182,9 +192,10 @@ fun HomeScreen(
                                 text = { Text(if (crashReportsEnabled != null) "Send crash reports" else "Crash reports (off in debug builds)") },
                                 leadingIcon = { Icon(Icons.Default.PrivacyTip, contentDescription = null) },
                                 trailingIcon = {
-                                    if (crashReportsEnabled == true) Icon(Icons.Default.Check, contentDescription = "On")
+                                    if (crashReportsEnabled == true) Icon(Icons.Default.Check, contentDescription = null)
                                 },
                                 enabled = crashReportsEnabled != null,
+                                modifier = Modifier.semantics { stateDescription = if (crashReportsEnabled == true) "On" else "Off" },
                                 onClick = {
                                     menuOpen = false
                                     crashReportsEnabled?.let { onCrashReportsChange(!it) }
@@ -349,7 +360,15 @@ private fun CollectionSection(
                 modifier = Modifier
                     .weight(1f)
                     .clip(RoundedCornerShape(12.dp))
-                    .clickable(onClickLabel = if (collection.collapsed) "Show scenes" else "Hide scenes", onClick = onToggleCollapsed)
+                    .clickable(
+                        onClickLabel = if (collection.collapsed) "Show scenes" else "Hide scenes",
+                        role = Role.Button,
+                        onClick = onToggleCollapsed,
+                    )
+                    .semantics {
+                        heading()
+                        stateDescription = if (collection.collapsed) "Collapsed" else "Expanded"
+                    }
                     .padding(vertical = 4.dp, horizontal = 4.dp),
             ) {
                 Icon(
@@ -406,7 +425,9 @@ private fun CollectionSection(
         AnimatedVisibility(visible = !collection.collapsed, enter = expandVertically(), exit = shrinkVertically()) {
             // Every scene at once, wrapping into rows: three columns on phones, more on wider screens.
             BoxWithConstraints(Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
-                val columns = maxOf(3, (maxWidth / 150.dp).toInt())
+                // With large text, fewer and wider tiles so scene names still fit (at least two columns).
+                val fontScale = LocalDensity.current.fontScale
+                val columns = minOf(maxOf(3, (maxWidth / 150.dp).toInt()), (maxWidth / (110.dp * fontScale)).toInt()).coerceAtLeast(2)
                 Column(verticalArrangement = Arrangement.spacedBy(TileGap)) {
                     if (collection.scenes.isEmpty()) {
                         Row(horizontalArrangement = Arrangement.spacedBy(TileGap)) {
@@ -461,7 +482,12 @@ private fun SceneTile(
             TileModifier
                 .clip(TileShape)
                 .then(if (isPlaying) Modifier.border(BorderStroke(2.dp, MaterialTheme.colorScheme.primary), TileShape) else Modifier)
-                .combinedClickable(onClick = onOpen, onLongClick = { menuOpen = true }),
+                .combinedClickable(
+                    onClick = onOpen,
+                    onClickLabel = "Open",
+                    onLongClick = { menuOpen = true },
+                    onLongClickLabel = "Rename, move or delete",
+                ),
         ) {
             SceneArt(scene, Modifier.fillMaxSize(), fallbackIconSize = 56.dp)
             BottomScrim()
@@ -482,6 +508,8 @@ private fun SceneTile(
                     },
                     style = MaterialTheme.typography.bodySmall,
                     color = Color.White.copy(alpha = 0.7f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
             if (isPlaying) {
@@ -556,7 +584,7 @@ private fun NowPlayingBar(scene: Scene, mixer: MixerState, onOpen: () -> Unit, o
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable(onClick = onOpen)
+                .clickable(onClickLabel = "Open scene", onClick = onOpen)
                 .navigationBarsPadding()
                 .padding(start = 12.dp, end = 16.dp, top = 10.dp, bottom = 10.dp),
         ) {

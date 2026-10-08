@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -52,11 +54,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.tevv.taverntales.model.HueSceneRef
 import dev.tevv.taverntales.model.LightSetup
 import dev.tevv.taverntales.model.LightSlot
+import dev.tevv.taverntales.ui.components.ColorChoice
 import kotlin.math.roundToInt
 import android.graphics.Color as AndroidColor
 
@@ -70,41 +80,55 @@ fun LightsRow(
     onApply: () -> Unit,
 ) {
     val hasLights = lighting != null || lights != null
+    val largeText = LocalDensity.current.fontScale > 1.3f
+    val actions = @Composable {
+        if (hasLights && connected) TextButton(onClick = onApply) { Text("Set now") }
+        TextButton(onClick = onEdit) { Text(if (connected) "Edit" else "Connect") }
+    }
     Surface(
         shape = RoundedCornerShape(16.dp),
         color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.85f),
         contentColor = MaterialTheme.colorScheme.onSurface,
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(start = 16.dp, end = 4.dp, top = 6.dp, bottom = 6.dp)) {
-            Icon(
-                if (hasLights) Icons.Filled.Lightbulb else Icons.Outlined.Lightbulb,
-                contentDescription = null,
-                tint = if (hasLights && connected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Column(Modifier.weight(1f).padding(start = 14.dp)) {
-                Text("Lights", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                when {
-                    lighting != null -> Row(verticalAlignment = Alignment.CenterVertically) {
-                        lighting.slots.forEach { Swatch(it.color, 16) }
-                        Text(
-                            if (lighting.brightness <= 0f) "  Off" else "  ${(lighting.brightness * 100).roundToInt()}%",
+        Column(Modifier.padding(start = 16.dp, end = 4.dp, top = 6.dp, bottom = 6.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    if (hasLights) Icons.Filled.Lightbulb else Icons.Outlined.Lightbulb,
+                    contentDescription = null,
+                    tint = if (hasLights && connected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                // Read as one line: "Lights, 3 colours, 60%".
+                Column(Modifier.weight(1f).padding(start = 14.dp).semantics(mergeDescendants = true) {}) {
+                    Text("Lights", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    when {
+                        lighting != null -> Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.semantics {
+                                contentDescription = if (lighting.slots.size == 1) "1 colour" else "${lighting.slots.size} colours"
+                            },
+                        ) {
+                            lighting.slots.forEach { Swatch(it.color, 16) }
+                            Text(
+                                if (lighting.brightness <= 0f) "  Off" else "  ${(lighting.brightness * 100).roundToInt()}%",
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                        }
+                        else -> Text(
+                            when {
+                                lights != null -> "Hue scene: " + listOfNotNull(lights.name, lights.room).joinToString(" · ")
+                                connected -> "Not changed"
+                                else -> "Hue not connected"
+                            },
                             style = MaterialTheme.typography.bodyMedium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                         )
                     }
-                    else -> Text(
-                        when {
-                            lights != null -> "Hue scene: " + listOfNotNull(lights.name, lights.room).joinToString(" · ")
-                            connected -> "Not changed"
-                            else -> "Hue not connected"
-                        },
-                        style = MaterialTheme.typography.bodyMedium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
                 }
+                if (!largeText) actions()
             }
-            if (hasLights && connected) TextButton(onClick = onApply) { Text("Set now") }
-            TextButton(onClick = onEdit) { Text(if (connected) "Edit" else "Connect") }
+            // With large text the buttons go on their own line, so the summary isn't squeezed.
+            if (largeText) Row(Modifier.align(Alignment.End)) { actions() }
         }
     }
 }
@@ -146,7 +170,7 @@ fun LightsSheet(
                 .padding(bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            Text("Lights for this scene", style = MaterialTheme.typography.titleLarge)
+            Text("Lights for this scene", style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
             SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                 LightsMode.entries.forEachIndexed { index, entry ->
                     SegmentedButton(
@@ -213,17 +237,24 @@ private fun LightSetupEditor(
     )
     FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         setup.slots.forEachIndexed { index, slot ->
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Box(
-                    Modifier.clickable {
+            val effectLabel = slot.effect?.let { EFFECTS[it] }
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier
+                    .clickable(onClickLabel = "Change", role = Role.Button) {
                         slotBeforeEdit = slot
                         editingSlot = index
+                    }
+                    .semantics {
+                        contentDescription = "Colour ${index + 1}" + (effectLabel?.let { ", $it effect" } ?: "")
                     },
-                ) { Swatch(slot.color, 52) }
+            ) {
+                Box(Modifier.clearAndSetSemantics {}) { Swatch(slot.color, 52) }
                 Text(
-                    slot.effect?.let { EFFECTS[it] } ?: " ",
+                    effectLabel ?: " ",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.clearAndSetSemantics {},
                 )
             }
         }
@@ -233,7 +264,7 @@ private fun LightSetupEditor(
                     .size(52.dp)
                     .clip(CircleShape)
                     .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
-                    .clickable {
+                    .clickable(role = Role.Button) {
                         val added = setup.slots.last().copy(effect = null)
                         onChange(setup.copy(slots = setup.slots + added))
                         slotBeforeEdit = added
@@ -245,7 +276,11 @@ private fun LightSetupEditor(
     }
 
     Text("Brightness: " + if (setup.brightness <= 0f) "off" else "${(setup.brightness * 100).roundToInt()}%", style = MaterialTheme.typography.labelLarge)
-    Slider(value = setup.brightness, onValueChange = { onChange(setup.copy(brightness = it)) })
+    Slider(
+        value = setup.brightness,
+        onValueChange = { onChange(setup.copy(brightness = it)) },
+        modifier = Modifier.semantics { contentDescription = "Brightness" },
+    )
 
     Text("Movement: " + motionLabel(setup.motion), style = MaterialTheme.typography.labelLarge)
     Text(
@@ -253,7 +288,14 @@ private fun LightSetupEditor(
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
-    Slider(value = setup.motion, onValueChange = { onChange(setup.copy(motion = it)) })
+    Slider(
+        value = setup.motion,
+        onValueChange = { onChange(setup.copy(motion = it)) },
+        modifier = Modifier.semantics {
+            contentDescription = "Movement"
+            stateDescription = motionLabel(setup.motion)
+        },
+    )
 
     if (room != null) {
         Text(
@@ -317,15 +359,19 @@ private fun SlotDialog(
                         .clip(RoundedCornerShape(12.dp))
                         .background(Color(parseColor(color))),
                 )
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    PRESETS.forEach { preset ->
-                        Box(
-                            Modifier.clickable {
+                FlowRow(Modifier.selectableGroup()) {
+                    PRESETS.forEach { (preset, name) ->
+                        ColorChoice(
+                            color = Color(parseColor(preset)),
+                            name = name,
+                            selected = preset.equals(color, ignoreCase = true),
+                            onClick = {
                                 val p = FloatArray(3).also { AndroidColor.colorToHSV(parseColor(preset), it) }
                                 hue = p[0]
                                 saturation = p[1]
                             },
-                        ) { Swatch(preset, 32) }
+                            size = 32.dp,
+                        )
                     }
                 }
                 Text("Hue", style = MaterialTheme.typography.labelMedium)
@@ -336,9 +382,18 @@ private fun SlotDialog(
                         .clip(RoundedCornerShape(5.dp))
                         .background(Brush.horizontalGradient((0..6).map { Color(AndroidColor.HSVToColor(floatArrayOf(it * 60f, 1f, 1f))) })),
                 )
-                Slider(value = hue, onValueChange = { hue = it }, valueRange = 0f..360f)
+                Slider(
+                    value = hue,
+                    onValueChange = { hue = it },
+                    valueRange = 0f..360f,
+                    modifier = Modifier.semantics { contentDescription = "Hue" },
+                )
                 Text("Saturation", style = MaterialTheme.typography.labelMedium)
-                Slider(value = saturation, onValueChange = { saturation = it })
+                Slider(
+                    value = saturation,
+                    onValueChange = { saturation = it },
+                    modifier = Modifier.semantics { contentDescription = "Saturation" },
+                )
                 Text("Effect", style = MaterialTheme.typography.labelMedium)
                 Text(
                     "Only on bulbs that support it (newer Hue lights); others just show the colour.",
@@ -386,15 +441,16 @@ private fun HueSceneList(
         else -> scenes.getOrThrow().groupBy { it.room ?: "Other" }.forEach { (room, roomScenes) ->
             Text(room, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
             roomScenes.forEach { scene ->
+                val selected = scene.id == current?.id
                 ListItem(
                     headlineContent = { Text(scene.name) },
-                    trailingContent = if (scene.id == current?.id) {
-                        { Icon(Icons.Default.Check, contentDescription = "Selected", tint = MaterialTheme.colorScheme.primary) }
+                    trailingContent = if (selected) {
+                        { Icon(Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary) }
                     } else {
                         null
                     },
                     colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                    modifier = Modifier.clickable { onPick(scene) },
+                    modifier = Modifier.selectable(selected = selected, role = Role.RadioButton) { onPick(scene) },
                 )
             }
         }
@@ -430,7 +486,10 @@ private const val MAX_SLOTS = 6
 /** Hue light effects offered in the editor (the bridge's names), with display labels. */
 private val EFFECTS = linkedMapOf("candle" to "Candle", "fire" to "Fire", "sparkle" to "Sparkle", "glisten" to "Glisten", "prism" to "Prism")
 
+/** Preset colours in the colour dialog, with the names screen readers use. */
 private val PRESETS = listOf(
-    "#FFE3B8", "#FFC27A", "#FFB054", "#FF8A2B", "#FF5A14", "#FF2A1A", "#C0141E", "#FF5FA2",
-    "#B03AFF", "#6A3D9A", "#2B3A8C", "#1E64FF", "#2FD8FF", "#2FA44A", "#86D660", "#F0F4FF",
+    "#FFE3B8" to "Candlelight", "#FFC27A" to "Warm white", "#FFB054" to "Amber", "#FF8A2B" to "Orange",
+    "#FF5A14" to "Ember", "#FF2A1A" to "Red", "#C0141E" to "Crimson", "#FF5FA2" to "Pink",
+    "#B03AFF" to "Purple", "#6A3D9A" to "Deep violet", "#2B3A8C" to "Night blue", "#1E64FF" to "Blue",
+    "#2FD8FF" to "Cyan", "#2FA44A" to "Green", "#86D660" to "Lime", "#F0F4FF" to "Cool white",
 )
