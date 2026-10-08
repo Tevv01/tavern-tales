@@ -203,6 +203,15 @@ object HueParsing {
         )
     }
 
+    /** Hue's online discovery service (discovery.meethue.com): bridges on the caller's network, as id to IP. */
+    fun parseDiscovery(json: JsonElement): List<Pair<String, String>> =
+        (json as? JsonArray).orEmpty().mapNotNull { item ->
+            val obj = item.jsonObject
+            val id = obj["id"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
+            val ip = obj["internalipaddress"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
+            id to ip
+        }
+
     /** The error descriptions in a v2 response, or null if there are none. */
     fun v2Errors(json: JsonElement): String? =
         (json as? JsonObject)?.get("errors")?.jsonArray

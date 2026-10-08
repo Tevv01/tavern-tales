@@ -36,7 +36,7 @@ fun TavernTalesNavHost(container: AppContainer) {
         container.mixer.errors.collect { snackbar.showSnackbar(it) }
     }
     LaunchedEffect(Unit) {
-        container.hue.errors.collect { snackbar.showSnackbar(it) }
+        container.hue.messages.collect { snackbar.showSnackbar(it) }
     }
 
     NavHost(navController, startDestination = HomeRoute) {
