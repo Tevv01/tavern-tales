@@ -46,6 +46,7 @@ import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.PrivacyTip
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
@@ -111,6 +112,7 @@ fun HomeScreen(
     onBack: () -> Unit,
     onOpenScene: (sceneId: String) -> Unit,
     onOpenHueSetup: () -> Unit,
+    onReportBug: () -> Unit,
     /** Null when this build can't report crashes (debug builds): the menu item is shown greyed out. */
     crashReportsEnabled: Boolean?,
     onCrashReportsChange: (Boolean) -> Unit,
@@ -169,8 +171,16 @@ fun HomeScreen(
                                 },
                             )
                             DropdownMenuItem(
-                                text = { Text(if (crashReportsEnabled != null) "Send crash reports" else "Crash reports (off in debug builds)") },
+                                text = { Text("Report a bug") },
                                 leadingIcon = { Icon(Icons.Default.BugReport, contentDescription = null) },
+                                onClick = {
+                                    menuOpen = false
+                                    onReportBug()
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(if (crashReportsEnabled != null) "Send crash reports" else "Crash reports (off in debug builds)") },
+                                leadingIcon = { Icon(Icons.Default.PrivacyTip, contentDescription = null) },
                                 trailingIcon = {
                                     if (crashReportsEnabled == true) Icon(Icons.Default.Check, contentDescription = "On")
                                 },

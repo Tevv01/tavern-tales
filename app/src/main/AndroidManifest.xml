@@ -3,6 +3,8 @@
 
     <!-- Talking to the Hue bridge on the local network. -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Checks for a connection before sending a bug report. -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />

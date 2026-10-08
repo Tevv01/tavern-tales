@@ -9,22 +9,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
-import android.content.ClipData
-import android.content.ClipboardManager
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.unit.dp
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.getValue
@@ -33,10 +18,12 @@ import dev.tevv.taverntales.AppContainer
 import dev.tevv.taverntales.CrashReporting
 import dev.tevv.taverntales.model.findScene
 import dev.tevv.taverntales.ui.home.HomeScreen
+import dev.tevv.taverntales.ui.info.BugReportScreen
 import dev.tevv.taverntales.ui.info.CreditsScreen
 import dev.tevv.taverntales.ui.info.License
 import dev.tevv.taverntales.ui.info.LicenseScreen
 import dev.tevv.taverntales.ui.info.PrivacyScreen
+import dev.tevv.taverntales.ui.info.ReportDialog
 import dev.tevv.taverntales.ui.menu.MenuScreen
 import dev.tevv.taverntales.ui.home.HomeViewModel
 import dev.tevv.taverntales.ui.hue.HueSetupScreen
@@ -64,6 +51,9 @@ private object CreditsRoute
 private object PrivacyRoute
 
 @Serializable
+private object BugReportRoute
+
+@Serializable
 private data class LicenseRoute(val license: String)
 
 @Composable
@@ -84,7 +74,10 @@ fun TavernTalesNavHost(container: AppContainer, crashReporting: CrashReporting) 
     }
     val pendingReports by crashReporting.pendingReports.collectAsStateWithLifecycle()
     pendingReports.firstOrNull()?.let { file ->
-        SentReportDialog(
+        ReportDialog(
+            title = "Crash report sent",
+            intro = "Tavern Tales closed unexpectedly last time. This report was sent to help fix it; it's " +
+                "everything that was sent, nothing more.",
             report = remember(file) { crashReporting.readReport(file) },
             onDismiss = { crashReporting.dismissReport(file) },
         )
@@ -100,6 +93,7 @@ fun TavernTalesNavHost(container: AppContainer, crashReporting: CrashReporting) 
                 onScenes = { navController.navigate(HomeRoute) },
                 onCredits = { navController.navigate(CreditsRoute) },
                 onPrivacy = { navController.navigate(PrivacyRoute) },
+                onReportBug = { navController.navigate(BugReportRoute) },
                 onOpenNowPlaying = { navController.navigate(SceneRoute(it.id)) },
                 onStop = container.mixer::stopAll,
             )
@@ -117,6 +111,14 @@ fun TavernTalesNavHost(container: AppContainer, crashReporting: CrashReporting) 
                 onCrashReportsChange = crashReporting::setEnabled,
             )
         }
+        composable<BugReportRoute> {
+            BugReportScreen(
+                canSend = crashReporting.available,
+                onBack = { navController.popBackStack() },
+                readLog = crashReporting::recentLog,
+                send = crashReporting::sendBugReport,
+            )
+        }
         composable<LicenseRoute> { entry ->
             LicenseScreen(License.valueOf(entry.toRoute<LicenseRoute>().license), onBack = { navController.popBackStack() })
         }
@@ -127,6 +129,7 @@ fun TavernTalesNavHost(container: AppContainer, crashReporting: CrashReporting) 
                 onBack = { navController.popBackStack() },
                 onOpenScene = { navController.navigate(SceneRoute(it)) },
                 onOpenHueSetup = { navController.navigate(HueRoute) },
+                onReportBug = { navController.navigate(BugReportRoute) },
                 crashReportsEnabled = if (crashReporting.available) crashReportsEnabled == true else null,
                 onCrashReportsChange = crashReporting::setEnabled,
             )
@@ -164,44 +167,5 @@ private fun CrashReportingQuestion(onAnswer: (Boolean) -> Unit) {
         },
         confirmButton = { TextButton(onClick = { onAnswer(true) }) { Text("Send reports") } },
         dismissButton = { TextButton(onClick = { onAnswer(false) }) { Text("No thanks") } },
-    )
-}
-
-/** Shows a crash report that was sent, in full, so the user can see (and copy) exactly what left the phone. */
-@Composable
-private fun SentReportDialog(report: String, onDismiss: () -> Unit) {
-    val context = LocalContext.current
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Crash report sent") },
-        text = {
-            Column {
-                Text(
-                    "Tavern Tales closed unexpectedly last time. This report was sent to help fix it; it's " +
-                        "everything that was sent, nothing more.",
-                    modifier = Modifier.padding(bottom = 12.dp),
-                )
-                Surface(
-                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                    shape = MaterialTheme.shapes.small,
-                    modifier = Modifier.fillMaxWidth().heightIn(max = 320.dp),
-                ) {
-                    SelectionContainer {
-                        Text(
-                            report,
-                            style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
-                            modifier = Modifier.verticalScroll(rememberScrollState()).padding(8.dp),
-                        )
-                    }
-                }
-            }
-        },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("OK") } },
-        dismissButton = {
-            TextButton(onClick = {
-                val clipboard = context.getSystemService(ClipboardManager::class.java)
-                clipboard.setPrimaryClip(ClipData.newPlainText("Tavern Tales crash report", report))
-            }) { Text("Copy") }
-        },
     )
 }

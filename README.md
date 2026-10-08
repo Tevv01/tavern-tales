@@ -29,6 +29,9 @@ An Android app for running ambience at the tabletop RPG table. Each scene layers
 **Backup and restore**
 - Save your whole library (scenes, light setups, events, pictures and your own sounds) to one file. Restore it on a new phone or after a reinstall, or add a friend's scenes to yours.
 
+**Bug reports**
+- Found a problem? **Report a bug** on the main menu sends a short report straight from the app, no account needed. You can add your email for a reply and the app's log for Hue or sound problems, and you see everything before it's sent. Or open a GitHub issue with your app and phone details filled in.
+
 ## Install
 
 1. Download the `.apk` from the [latest release](https://github.com/Tevv01/tavern-tales/releases/latest) on an Android phone (Android 8 or newer).
@@ -38,7 +41,7 @@ From 0.2.1 on, releases are signed and install over each other, keeping your sce
 
 ## Getting started
 
-- **Find your way**: the app opens on its main menu. **Scenes** leads to everything below; **Credits & licences** and **Privacy** are there too.
+- **Find your way**: the app opens on its main menu. **Scenes** leads to everything below; **Credits**, **Privacy** and **Report a bug** are there too.
 - **Play a scene**: tap the play button on a scene's picture, or open it and tap **Play scene**. Switch individual sounds on and off and adjust their volumes on the **Ambience** tab; the **Events** tab has the sound-effect pads.
 - **Organise**: the folder button on the Scenes screen makes a new collection, and **+** next to a collection's name adds a scene to it. Long-press a scene to rename it, move it to another collection or delete it.
 - **Set up Hue lights**: tap the lightbulb on the Scenes screen, connect your bridge and press its link button, then choose the **Room for scene lighting**. Each scene's **Lights** row lets you edit its colours, brightness, flicker and movement.
@@ -62,6 +65,7 @@ The app only talks to the network for:
   - a random ID created when the app was installed, which only lets crashes from the same install be counted together. It isn't linked to you.
 
   No name, account, IP address, location, scenes, sounds, pictures or screenshots are included. After a report is sent, the app shows you the complete report, exactly as it was sent, so you can check (and copy) what was shared. Development (debug) builds never send reports.
+- **Bug reports you write and send yourself** (**Report a bug**). They go to the same place as crash reports and contain your message, your email if you give one, the app's recent log if you tick the box, and the same technical details as a crash report. You review the report before it's sent and can see the complete report afterwards. Sending one doesn't switch on crash reports.
 
 ## Planned
 
@@ -132,6 +136,6 @@ The scene pictures, the main menu's title picture and the app background are dra
 ## Credits
 
 - Sounds: see [SOUND_CREDITS.md](SOUND_CREDITS.md).
-- Open-source libraries: listed with their licences in the app under **Credits & licences**.
+- Open-source libraries: listed with their licences in the app under **Credits**.
 - Heading font: [Cinzel](https://github.com/NDISCOVER/Cinzel), SIL Open Font License (see `licenses/`).
 - Philips Hue is a trademark of Signify. Tavern Tales is not affiliated with or endorsed by Signify.
