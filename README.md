@@ -52,7 +52,12 @@ Tavern Tales has no account and no ads, and doesn't track you. Your scenes, soun
 
 The app only talks to the network for:
 - **Your Hue Bridge**, directly on your Wi-Fi. If the bridge can't be found there, the app asks Philips Hue's discovery service (`discovery.meethue.com`) for its local address, as the Hue app does.
-- **Crash reports, only if you agree.** The app asks once; you can change your answer in the **⋮** menu. If a crash happens, an anonymous report goes to [Sentry](https://sentry.io), stored in the EU: the error and where in the app it happened, the phone model, Android version and app version. No name, account, IP address, location, scenes, sounds, pictures or screenshots are included. Development (debug) builds never send reports.
+- **Crash reports, only if you agree.** The app asks once; you can change your answer in the **⋮** menu. If a crash happens, a report goes to [Sentry](https://sentry.io), stored in the EU. It contains:
+  - the error and where in the app it happened, and the app version;
+  - the phone model and Android version, plus technical details such as memory, storage, battery level, screen size, network type, and your language and time-zone settings;
+  - a random ID created when the app was installed, which only lets crashes from the same install be counted together. It isn't linked to you.
+
+  No name, account, IP address, location, scenes, sounds, pictures or screenshots are included. Development (debug) builds never send reports.
 
 ## Planned
 

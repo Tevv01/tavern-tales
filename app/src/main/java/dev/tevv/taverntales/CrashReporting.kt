@@ -14,8 +14,9 @@ import kotlinx.coroutines.flow.asStateFlow
  * Opt-in crash reporting with Sentry. Nothing is sent unless the user has agreed, and only builds
  * that have a DSN (release and releaseTest) can report at all; see the manifest and build file.
  *
- * Reports contain the crash's stack trace and basic device facts (model, Android version, app
- * version). No personal data: no user id, IP address, screenshots or view hierarchy.
+ * Reports contain the crash's stack trace, device facts (model, Android version, memory, locale,
+ * time zone...) and Sentry's random per-install id. No user info, IP address, screenshots or view
+ * hierarchy. Keep the README's Privacy section in sync with this.
  */
 class CrashReporting(private val app: Application) {
     private val prefs = app.getSharedPreferences("settings", Context.MODE_PRIVATE)
