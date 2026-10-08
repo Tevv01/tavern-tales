@@ -31,6 +31,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.tevv.taverntales.model.SoundLayer
@@ -77,7 +80,11 @@ fun LayerCard(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                Slider(value = layer.volume, onValueChange = onVolume)
+                Slider(
+                    value = layer.volume,
+                    onValueChange = onVolume,
+                    modifier = Modifier.semantics { contentDescription = "Volume of ${layer.name}" },
+                )
             }
             Box {
                 var menuOpen by remember { mutableStateOf(false) }
@@ -91,11 +98,13 @@ fun LayerCard(
                     DropdownMenuItem(
                         text = { Text("Start with scene") },
                         leadingIcon = { CheckMark(layer.autoPlay) },
+                        modifier = Modifier.onOff(layer.autoPlay),
                         onClick = { menuOpen = false; onAutoPlay(!layer.autoPlay) },
                     )
                     DropdownMenuItem(
                         text = { Text("Loop") },
                         leadingIcon = { CheckMark(layer.loop) },
+                        modifier = Modifier.onOff(layer.loop),
                         onClick = { menuOpen = false; onLoop(!layer.loop) },
                     )
                     DropdownMenuItem(
@@ -112,6 +121,9 @@ fun LayerCard(
 @Composable
 private fun CheckMark(checked: Boolean) {
     Box(Modifier.size(24.dp)) {
-        if (checked) Icon(Icons.Default.Check, contentDescription = "On")
+        if (checked) Icon(Icons.Default.Check, contentDescription = null)
     }
 }
+
+/** Screen readers say "On" or "Off" for a menu item that toggles a setting. */
+fun Modifier.onOff(on: Boolean): Modifier = semantics { stateDescription = if (on) "On" else "Off" }

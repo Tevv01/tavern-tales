@@ -19,11 +19,11 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.DriveFileMove
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.automirrored.filled.DriveFileMove
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.HideImage
@@ -62,6 +62,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -367,7 +370,14 @@ private fun SceneTitle(scene: Scene, collection: SceneCollection?) {
                 color = MaterialTheme.colorScheme.primary,
             )
         }
-        Text(scene.name, style = MaterialTheme.typography.displaySmall, color = Color.White, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        Text(
+            scene.name,
+            style = MaterialTheme.typography.displaySmall,
+            color = Color.White,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.semantics { heading() },
+        )
     }
 }
 
@@ -403,7 +413,11 @@ private fun SceneControls(
                 modifier = Modifier.padding(end = 12.dp),
             )
             Text("Master", style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(end = 12.dp))
-            Slider(value = mixer.masterVolume, onValueChange = onMasterVolume, modifier = Modifier.weight(1f))
+            Slider(
+                value = mixer.masterVolume,
+                onValueChange = onMasterVolume,
+                modifier = Modifier.weight(1f).semantics { contentDescription = "Master volume" },
+            )
         }
     }
 }

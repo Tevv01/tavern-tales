@@ -5,9 +5,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -20,6 +22,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
@@ -87,16 +90,17 @@ fun <T> ChoiceDialog(
         onDismissRequest = onDismiss,
         title = { Text(title) },
         text = {
-            Column {
+            Column(Modifier.selectableGroup()) {
                 options.forEach { option ->
+                    // The whole row is the radio button, so screen readers announce each option once.
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { onPick(option) }
+                            .selectable(selected = option == selected, role = Role.RadioButton) { onPick(option) }
                             .padding(vertical = 4.dp),
                     ) {
-                        RadioButton(selected = option == selected, onClick = { onPick(option) })
+                        RadioButton(selected = option == selected, onClick = null, modifier = Modifier.padding(12.dp))
                         Text(label(option), Modifier.padding(start = 8.dp))
                     }
                 }

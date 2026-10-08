@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -38,6 +39,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -117,9 +119,9 @@ fun BugReportScreen(
                 )
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth().clickable { includeLog = !includeLog },
+                    modifier = Modifier.fillMaxWidth().toggleable(value = includeLog, role = Role.Checkbox) { includeLog = it },
                 ) {
-                    Checkbox(checked = includeLog, onCheckedChange = { includeLog = it })
+                    Checkbox(checked = includeLog, onCheckedChange = null, modifier = Modifier.padding(12.dp))
                     Column(Modifier.padding(start = 4.dp)) {
                         Text("Include the app's log", style = MaterialTheme.typography.titleSmall)
                         Text(
