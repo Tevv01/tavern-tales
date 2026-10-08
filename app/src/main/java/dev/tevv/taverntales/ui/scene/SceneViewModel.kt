@@ -5,8 +5,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.tevv.taverntales.audio.AmbienceMixer
 import dev.tevv.taverntales.audio.ImportedAudio
+import dev.tevv.taverntales.audio.SceneLauncher
 import dev.tevv.taverntales.data.BackgroundStore
 import dev.tevv.taverntales.data.LibraryRepository
+import dev.tevv.taverntales.hue.HueController
+import dev.tevv.taverntales.model.HueSceneRef
 import dev.tevv.taverntales.model.Scene
 import dev.tevv.taverntales.model.SceneCollection
 import dev.tevv.taverntales.model.SoundEvent
@@ -15,6 +18,7 @@ import dev.tevv.taverntales.model.collectionOf
 import dev.tevv.taverntales.model.findScene
 import dev.tevv.taverntales.model.newId
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -27,6 +31,8 @@ class SceneViewModel(
     private val sceneId: String,
     private val repository: LibraryRepository,
     private val mixer: AmbienceMixer,
+    private val launcher: SceneLauncher,
+    private val hue: HueController,
     private val backgrounds: BackgroundStore,
 ) : ViewModel() {
     /** Null once the scene has been deleted. */
@@ -54,12 +60,14 @@ class SceneViewModel(
     // Playback
 
     fun playScene() {
-        scene.value?.let(mixer::startScene)
+        scene.value?.let(launcher::start)
     }
 
     fun stopAll() = mixer.stopAll()
 
-    fun toggleLayer(layer: SoundLayer) = mixer.toggleLayer(sceneId, layer)
+    fun toggleLayer(layer: SoundLayer) {
+        scene.value?.let { launcher.toggleLayer(it, layer) }
+    }
 
     fun setMasterVolume(volume: Float) = mixer.setMasterVolume(volume)
 
@@ -92,6 +100,29 @@ class SceneViewModel(
     fun removeBackground() {
         backgrounds.delete(scene.value?.background)
         repository.setBackground(sceneId, null)
+    }
+
+    // Lights
+
+    val hueBridge = hue.bridge
+
+    /** Scenes on the bridge for the picker: null while loading. */
+    private val _hueScenes = MutableStateFlow<Result<List<HueSceneRef>>?>(null)
+    val hueScenes: StateFlow<Result<List<HueSceneRef>>?> = _hueScenes
+
+    fun loadHueScenes() {
+        _hueScenes.value = null
+        viewModelScope.launch { _hueScenes.value = runCatching { hue.scenes() } }
+    }
+
+    /** Links [ref] to this scene and switches the lights to it right away, so the choice can be seen. */
+    fun linkLights(ref: HueSceneRef?) {
+        repository.setLights(sceneId, ref)
+        ref?.let(hue::recall)
+    }
+
+    fun applyLights() {
+        scene.value?.lights?.let(hue::recall)
     }
 
     // Layers

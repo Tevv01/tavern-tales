@@ -95,12 +95,16 @@ fun SceneScreen(
     viewModel: SceneViewModel,
     snackbar: SnackbarHostState,
     onBack: () -> Unit,
+    onOpenHueSetup: () -> Unit,
 ) {
     val scene by viewModel.scene.collectAsStateWithLifecycle()
     val collection by viewModel.collection.collectAsStateWithLifecycle()
     val collections by viewModel.collections.collectAsStateWithLifecycle()
     val events by viewModel.events.collectAsStateWithLifecycle()
     val mixer by viewModel.mixerState.collectAsStateWithLifecycle()
+    val hueBridge by viewModel.hueBridge.collectAsStateWithLifecycle()
+    val hueScenes by viewModel.hueScenes.collectAsStateWithLifecycle()
+    var pickingLights by rememberSaveable { mutableStateOf(false) }
     val current = scene ?: run {
         // Deleted (from this screen's menu or elsewhere); nothing to show.
         LaunchedEffect(Unit) { onBack() }
@@ -194,6 +198,14 @@ fun SceneScreen(
                     )
                 }
                 item(span = { GridItemSpan(maxLineSpan) }) {
+                    LightsRow(
+                        lights = current.lights,
+                        connected = hueBridge != null,
+                        onPick = { if (hueBridge == null) onOpenHueSetup() else pickingLights = true },
+                        onApply = viewModel::applyLights,
+                    )
+                }
+                item(span = { GridItemSpan(maxLineSpan) }) {
                     PrimaryTabRow(selectedTabIndex = tab, containerColor = Color.Transparent) {
                         Tab(
                             selected = tab == TAB_AMBIENCE,
@@ -243,6 +255,19 @@ fun SceneScreen(
                 }
             }
         }
+    }
+
+    if (pickingLights) {
+        HueScenePicker(
+            current = current.lights,
+            scenes = hueScenes,
+            onLoad = viewModel::loadHueScenes,
+            onPick = {
+                viewModel.linkLights(it)
+                pickingLights = false
+            },
+            onDismiss = { pickingLights = false },
+        )
     }
 
     events.find { it.id == editingEventId }?.let { event ->

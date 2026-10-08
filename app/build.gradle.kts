@@ -47,6 +47,7 @@ dependencies {
     implementation(libs.androidx.media3.exoplayer)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.coil.compose)
+    implementation(libs.okhttp)
     debugImplementation(libs.androidx.compose.ui.tooling)
 
     testImplementation(libs.junit)

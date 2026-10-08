@@ -2,6 +2,7 @@ package dev.tevv.taverntales.data
 
 import android.util.AtomicFile
 import android.util.Log
+import dev.tevv.taverntales.model.HueSceneRef
 import dev.tevv.taverntales.model.Library
 import dev.tevv.taverntales.model.Scene
 import dev.tevv.taverntales.model.SceneCollection
@@ -77,6 +78,9 @@ class LibraryRepository(private val dir: File, scope: CoroutineScope) {
 
     fun setBackground(sceneId: String, background: String?) =
         _library.update { lib -> lib.updateScene(sceneId) { it.copy(background = background) } }
+
+    fun setLights(sceneId: String, lights: HueSceneRef?) =
+        _library.update { lib -> lib.updateScene(sceneId) { it.copy(lights = lights) } }
 
     fun moveScene(sceneId: String, toCollectionId: String) = _library.update { it.moveScene(sceneId, toCollectionId) }
 

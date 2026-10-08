@@ -20,7 +20,8 @@ data class SceneCollection(
  * A table situation (e.g. "Town") with the sound layers that make up its ambience.
  *
  * [background] is either `builtin:<key>` (an image shipped with the app) or a `file://` URI of an
- * image copied into app storage; null means no image.
+ * image copied into app storage; null means no image. [lights] is the Hue scene recalled when the
+ * scene is played.
  */
 @Serializable
 data class Scene(
@@ -28,6 +29,18 @@ data class Scene(
     val name: String,
     val layers: List<SoundLayer> = emptyList(),
     val background: String? = null,
+    val lights: HueSceneRef? = null,
+)
+
+/**
+ * A scene on the user's Hue bridge. [id] is the CLIP v2 resource id; [name] and [room] are kept so
+ * the link can be shown even when the bridge can't be reached.
+ */
+@Serializable
+data class HueSceneRef(
+    val id: String,
+    val name: String,
+    val room: String? = null,
 )
 
 /**

@@ -13,9 +13,11 @@ Early development. `main` holds tested, working builds; new features are develop
 - **Events**: a pad of sound effects (fireball, explosion, holy light, thunder, sword clash...) available in every scene. Add your own and change their name, icon, colour, volume and sound.
 - **Your own audio and pictures**: add sounds from files on the phone (they aren't copied, so keep them where they are; OGG or WAV loops more seamlessly than MP3), and give any scene a picture from your gallery.
 
+- **Philips Hue**: connect your Hue Bridge (found automatically on your Wi-Fi) and link a Hue scene to each scene; playing the scene switches the lights too.
+
 ## Planned
 
-- **Hue sync**: connect to a Hue bridge on the local network and set lights per scene (colour, brightness), editable in the app.
+- Editing light colours and brightness in the app, and events that flash the lights (e.g. orange for a fireball).
 
 ## Building
 

@@ -28,6 +28,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.automirrored.filled.DriveFileMove
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.GraphicEq
+import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Stop
@@ -86,6 +87,7 @@ fun HomeScreen(
     viewModel: HomeViewModel,
     snackbar: SnackbarHostState,
     onOpenScene: (sceneId: String) -> Unit,
+    onOpenHueSetup: () -> Unit,
 ) {
     val library by viewModel.library.collectAsStateWithLifecycle()
     val mixer by viewModel.mixerState.collectAsStateWithLifecycle()
@@ -99,6 +101,9 @@ fun HomeScreen(
                     Text("Tavern Tales", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primary)
                 },
                 actions = {
+                    IconButton(onClick = onOpenHueSetup) {
+                        Icon(Icons.Default.Lightbulb, contentDescription = "Philips Hue")
+                    }
                     IconButton(onClick = { dialog = HomeDialog.NewCollection }) {
                         Icon(Icons.Default.CreateNewFolder, contentDescription = "New collection")
                     }
