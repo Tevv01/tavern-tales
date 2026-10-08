@@ -31,13 +31,22 @@ import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.tevv.taverntales.AppContainer
 import dev.tevv.taverntales.CrashReporting
+import dev.tevv.taverntales.model.findScene
 import dev.tevv.taverntales.ui.home.HomeScreen
+import dev.tevv.taverntales.ui.info.CreditsScreen
+import dev.tevv.taverntales.ui.info.License
+import dev.tevv.taverntales.ui.info.LicenseScreen
+import dev.tevv.taverntales.ui.info.PrivacyScreen
+import dev.tevv.taverntales.ui.menu.MenuScreen
 import dev.tevv.taverntales.ui.home.HomeViewModel
 import dev.tevv.taverntales.ui.hue.HueSetupScreen
 import dev.tevv.taverntales.ui.hue.HueSetupViewModel
 import dev.tevv.taverntales.ui.scene.SceneScreen
 import dev.tevv.taverntales.ui.scene.SceneViewModel
 import kotlinx.serialization.Serializable
+
+@Serializable
+private object MenuRoute
 
 @Serializable
 private object HomeRoute
@@ -47,6 +56,15 @@ private data class SceneRoute(val sceneId: String)
 
 @Serializable
 private object HueRoute
+
+@Serializable
+private object CreditsRoute
+
+@Serializable
+private object PrivacyRoute
+
+@Serializable
+private data class LicenseRoute(val license: String)
 
 @Composable
 fun TavernTalesNavHost(container: AppContainer, crashReporting: CrashReporting) {
@@ -72,11 +90,41 @@ fun TavernTalesNavHost(container: AppContainer, crashReporting: CrashReporting) 
         )
     }
 
-    NavHost(navController, startDestination = HomeRoute) {
+    NavHost(navController, startDestination = MenuRoute) {
+        composable<MenuRoute> {
+            val mixer by container.mixer.state.collectAsStateWithLifecycle()
+            val library by container.library.library.collectAsStateWithLifecycle()
+            MenuScreen(
+                nowPlaying = mixer.sceneId?.let { library.findScene(it) }?.takeIf { mixer.playing.isNotEmpty() },
+                playingCount = mixer.playing.size,
+                onScenes = { navController.navigate(HomeRoute) },
+                onCredits = { navController.navigate(CreditsRoute) },
+                onPrivacy = { navController.navigate(PrivacyRoute) },
+                onOpenNowPlaying = { navController.navigate(SceneRoute(it.id)) },
+                onStop = container.mixer::stopAll,
+            )
+        }
+        composable<CreditsRoute> {
+            CreditsScreen(
+                onBack = { navController.popBackStack() },
+                onOpenLicense = { navController.navigate(LicenseRoute(it.name)) },
+            )
+        }
+        composable<PrivacyRoute> {
+            PrivacyScreen(
+                onBack = { navController.popBackStack() },
+                crashReportsEnabled = if (crashReporting.available) crashReportsEnabled == true else null,
+                onCrashReportsChange = crashReporting::setEnabled,
+            )
+        }
+        composable<LicenseRoute> { entry ->
+            LicenseScreen(License.valueOf(entry.toRoute<LicenseRoute>().license), onBack = { navController.popBackStack() })
+        }
         composable<HomeRoute> {
             HomeScreen(
                 viewModel = viewModel { HomeViewModel(container.library, container.mixer, container.launcher, container.backgrounds, container.backup) },
                 snackbar = snackbar,
+                onBack = { navController.popBackStack() },
                 onOpenScene = { navController.navigate(SceneRoute(it)) },
                 onOpenHueSetup = { navController.navigate(HueRoute) },
                 crashReportsEnabled = if (crashReporting.available) crashReportsEnabled == true else null,
@@ -88,7 +136,7 @@ fun TavernTalesNavHost(container: AppContainer, crashReporting: CrashReporting) 
             SceneScreen(
                 viewModel = viewModel { SceneViewModel(sceneId, container.library, container.mixer, container.launcher, container.hue, container.backgrounds) },
                 snackbar = snackbar,
-                onBack = { navController.popBackStack(HomeRoute, inclusive = false) },
+                onBack = { navController.popBackStack() },
                 onOpenHueSetup = { navController.navigate(HueRoute) },
             )
         }

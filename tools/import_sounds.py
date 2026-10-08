@@ -23,7 +23,11 @@ Manifest fields per sound (only "file" is required to process; the rest feed the
               raise it for clicky material like fire crackle, where short peaks hide limiting well
   stack       one-shots only: list of offsets (s) to layer copies at (one arrow -> a volley)
 
-Options: --out DIR (default: the assets folder), --manifest FILE, --credits FILE
+Options: --out DIR (default: the assets folder), --manifest FILE, --credits FILE,
+         --credits-only (only regenerate SOUND_CREDITS.md and the app's credits list)
+
+The app's Credits screen reads app/src/main/assets/credits/sounds.json, written alongside
+SOUND_CREDITS.md from the same manifest.
 
 Needs: pip install -r tools/requirements.txt
 """
@@ -46,6 +50,7 @@ SOURCES = ROOT / "sound-sources"
 MANIFEST = ROOT / "tools" / "sound_sources.json"
 ASSETS = ROOT / "app" / "src" / "main" / "assets" / "sounds"
 CREDITS = ROOT / "SOUND_CREDITS.md"
+APP_CREDITS = ROOT / "app" / "src" / "main" / "assets" / "credits" / "sounds.json"
 
 # Loudness targets (RMS dBFS) matching generate_sounds.py, so replaced and synthesized sounds sit together.
 TARGET_RMS = {
@@ -290,15 +295,31 @@ def write_credits(manifest, names, path):
     path.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
 
 
+def write_app_credits(manifest, names, path):
+    """The same credits as SOUND_CREDITS.md, as JSON for the app's Credits screen."""
+    entries = []
+    for name in names:
+        e = manifest.get(name)
+        if e:
+            entries.append({"sound": name, "title": e.get("title", e["file"]), "author": e.get("author", ""),
+                            "license": e.get("license", ""), "source": e.get("source", "")})
+        else:
+            entries.append({"sound": name, "title": "Synthesized for Tavern Tales", "author": "Tavern Tales",
+                            "license": "Public domain", "source": ""})
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(entries, indent=1, ensure_ascii=False) + "\n", encoding="utf-8", newline="\n")
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--out", type=Path, default=ASSETS)
     parser.add_argument("--manifest", type=Path, default=MANIFEST)
     parser.add_argument("--credits", type=Path, default=CREDITS)
+    parser.add_argument("--credits-only", action="store_true")
     args = parser.parse_args()
     manifest = json.loads(args.manifest.read_text(encoding="utf-8")) if args.manifest.exists() else {}
     names = sorted(p.stem for p in ASSETS.glob("*.ogg"))
-    for name, entry in manifest.items():
+    for name, entry in ({} if args.credits_only else manifest).items():
         if name not in names:
             sys.exit(f"{name}: not a built-in sound (expected one of {', '.join(names)})")
         if not (SOURCES / entry["file"]).is_file():
@@ -309,7 +330,8 @@ def main():
         args.out.mkdir(parents=True, exist_ok=True)
         write(args.out, name, out)
     write_credits(manifest, names, args.credits)
-    print(f"Wrote {args.credits.name}")
+    write_app_credits(manifest, names, APP_CREDITS)
+    print(f"Wrote {args.credits.name} and {APP_CREDITS.relative_to(ROOT).as_posix()}")
 
 
 if __name__ == "__main__":

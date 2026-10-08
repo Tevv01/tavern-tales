@@ -25,6 +25,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.BugReport
@@ -98,9 +99,10 @@ private sealed interface HomeDialog {
 fun HomeScreen(
     viewModel: HomeViewModel,
     snackbar: SnackbarHostState,
+    onBack: () -> Unit,
     onOpenScene: (sceneId: String) -> Unit,
     onOpenHueSetup: () -> Unit,
-    /** Null when this build can't report crashes (debug builds): the menu item is hidden. */
+    /** Null when this build can't report crashes (debug builds): the menu item is shown greyed out. */
     crashReportsEnabled: Boolean?,
     onCrashReportsChange: (Boolean) -> Unit,
 ) {
@@ -120,10 +122,15 @@ fun HomeScreen(
     }
 
     Scaffold(
+        containerColor = Color.Transparent,
+        contentColor = MaterialTheme.colorScheme.onBackground,
         topBar = {
             TopAppBar(
                 title = {
-                    Text("Tavern Tales", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primary)
+                    Text("Scenes", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primary)
+                },
+                navigationIcon = {
+                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back to the menu") }
                 },
                 actions = {
                     IconButton(onClick = onOpenHueSetup) {
@@ -152,23 +159,22 @@ fun HomeScreen(
                                     pickBackup.launch(arrayOf("application/zip", "application/octet-stream"))
                                 },
                             )
-                            if (crashReportsEnabled != null) {
-                                DropdownMenuItem(
-                                    text = { Text("Send crash reports") },
-                                    leadingIcon = { Icon(Icons.Default.BugReport, contentDescription = null) },
-                                    trailingIcon = {
-                                        if (crashReportsEnabled) Icon(Icons.Default.Check, contentDescription = "On")
-                                    },
-                                    onClick = {
-                                        menuOpen = false
-                                        onCrashReportsChange(!crashReportsEnabled)
-                                    },
-                                )
-                            }
+                            DropdownMenuItem(
+                                text = { Text(if (crashReportsEnabled != null) "Send crash reports" else "Crash reports (off in debug builds)") },
+                                leadingIcon = { Icon(Icons.Default.BugReport, contentDescription = null) },
+                                trailingIcon = {
+                                    if (crashReportsEnabled == true) Icon(Icons.Default.Check, contentDescription = "On")
+                                },
+                                enabled = crashReportsEnabled != null,
+                                onClick = {
+                                    menuOpen = false
+                                    crashReportsEnabled?.let { onCrashReportsChange(!it) }
+                                },
+                            )
                         }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
             )
         },
         bottomBar = {

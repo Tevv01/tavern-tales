@@ -424,11 +424,99 @@ def cave(out):
     c.save(out / 'bg_cave.webp')
 
 
+def title(out):
+    """Main menu: a tavern at night. The sky (top third) stays clear for the app's title."""
+    c = Canvas()
+    c.gradient([(0, '#060818'), (0.3, '#141634'), (0.52, '#2e2142'), (0.6, '#3a2436'), (1, '#120c0a')])
+    stars(c, 170, H * 0.45)
+    c.glow(150, 210, 26, '#fff4dc', 1.3)
+    c.glow(150, 210, 110, '#9fb3ff', 0.22)
+    house_row(c, H * 0.62, None, (40, 80), (50, 110), '#1c1424', '#ffb85c', 0.18, scale=0.7)
+    c.rect((0, H * 0.62, W, H), '#140e12')
+
+    wall, timber, roof = '#3a2414', '#160d07', '#120906'
+    left, right, top, bottom = 110, 610, H * 0.40, H * 0.86
+    c.poly([(80, top), (360, H * 0.24), (640, top)], roof)                       # roof
+    c.rect((470, H * 0.25, 510, H * 0.33), roof)                                  # chimney
+    for i in range(4):
+        x, y = 490 + i * 14, H * 0.24 - i * 34
+        c.ellipse((x - 40, y - 22, x + 40, y + 22), '#b8a8b8', alpha=0.05, blur=14)
+    c.rect((left, top, right, bottom), wall)
+    plaster = fbm(5, 6, seed=21)
+    c.shade(np.where((XX > left) & (XX < right) & (YY > top) & (YY < bottom), 0.85 + 0.3 * plaster, 1.0))
+    for y in (top, H * 0.585, bottom - 6):                                       # timber frame
+        c.rect((left - 6, y, right + 6, y + 12), timber)
+    for x in (left - 6, 240, 470, right - 6):
+        c.rect((x, top, x + 14, bottom), timber)
+    for x0, x1 in ((left, 240), (470, right)):
+        c.poly([(x0 + 6, H * 0.585), (x0 + 18, H * 0.585), (x1, top + 12), (x1 - 12, top + 12)], timber)
+
+    def window(x0, y0, x1, y1):
+        c.rect((x0 - 6, y0 - 6, x1 + 6, y1 + 6), timber)
+        c.rect((x0, y0, x1, y1), '#ffc070')
+        c.glow((x0 + x1) / 2, (y0 + y1) / 2, 45, '#ffb35a', 0.55)
+        c.rect(((x0 + x1) / 2 - 3, y0, (x0 + x1) / 2 + 3, y1), timber)
+        c.rect((x0, (y0 + y1) / 2 - 3, x1, (y0 + y1) / 2 + 3), timber)
+
+    window(275, H * 0.455, 345, H * 0.53)
+    window(375, H * 0.455, 445, H * 0.53)
+    window(140, H * 0.64, 205, H * 0.71)
+    window(515, H * 0.64, 580, H * 0.71)
+    door = Canvas.mask(lambda d: (d.rectangle((300, H * 0.68, 420, bottom), fill=255),
+                                  d.ellipse((300, H * 0.645, 420, H * 0.715), fill=255)))
+    c.paint(door, '#ffcf80')
+    c.glow(360, H * 0.79, 70, '#fff0c0', 0.6)
+    c.paint(Canvas.mask(lambda d: (d.rectangle((292, H * 0.68, 300, bottom), fill=255),
+                                    d.rectangle((420, H * 0.68, 428, bottom), fill=255))), timber)
+    for x in (265, 455):                                                          # wall lanterns
+        y = H * 0.70
+        c.rect((x - 8, y - 14, x + 8, y + 12), '#2a1a0a')
+        c.rect((x - 5, y - 10, x + 5, y + 8), '#ffd27a')
+        c.glow(x, y, 26, '#ffd27a', 0.9)
+        c.glow(x, y, 120, '#ff9a3a', 0.18)
+
+    c.rect((610, H * 0.44, 690, H * 0.448), '#1a0f07')                            # sign bracket
+    for x in (628, 672):
+        c.rect((x, H * 0.448, x + 2, H * 0.47), '#3a2a1a')
+    c.rect((604, H * 0.47, 696, H * 0.535), '#5a3818')
+    c.rect((610, H * 0.476, 690, H * 0.529), '#6e4520')
+    c.rect((636, H * 0.484, 662, H * 0.52), '#e8b85c')                            # tankard on the sign
+    c.rect((662, H * 0.49, 670, H * 0.512), '#e8b85c')
+    c.rect((633, H * 0.481, 665, H * 0.489), '#fff0c8')
+
+    c.glow(360, H * 0.9, 260, '#ff9a3a', 0.16)                                    # light spilling onto the street
+    stones = fbm(6, 10, seed=22)
+    c.shade(np.where(YY > bottom, 0.75 + 0.4 * stones, 1.0))
+    c.ellipse((230, H * 0.865, 490, H * 0.93), '#ffcf80', alpha=0.12, blur=30)
+    for _ in range(18):                                                           # drifting embers
+        x, y = rng.normal(360, 120), rng.uniform(H * 0.6, H * 0.85)
+        c.glow(x, y, 2.5, '#ffd27a', 0.9)
+    c.grain(0.025)
+    c.vignette(0.55)
+    c.save(out / 'bg_title.webp')
+
+
+def app_background(out):
+    """Behind every screen: warm darkness with faint candle-glow and wood grain, kept low-contrast."""
+    c = Canvas()
+    c.gradient([(0, '#120d0a'), (0.5, '#17100c'), (1, '#0d0907')])
+    grain = np.asarray(Image.fromarray((fbm(5, 3, seed=31) * 255).astype(np.uint8)).resize((W // 8, H)).resize((W, H), Image.BICUBIC),
+                       np.float32) / 255
+    c.shade(0.9 + 0.18 * grain)
+    c.glow(W * 0.85, H * 0.08, 380, '#ff9a3a', 0.07)
+    c.glow(W * 0.1, H * 0.95, 420, '#c0501a', 0.06)
+    c.glow(W * 0.5, H * 0.45, 600, '#3a2430', 0.05)
+    c.grain(0.018)
+    c.vignette(0.5)
+    c.save(out / 'bg_app.webp')
+
+
 def main():
     out = Path(sys.argv[1] if len(sys.argv) > 1 else "app/src/main/res/drawable-nodpi")
     out.mkdir(parents=True, exist_ok=True)
     print(f"Writing to {out}/")
-    for fn in (town, tavern, dungeon, market, forest, cave):
+    # New pictures go at the end: each one draws from the shared random generator.
+    for fn in (town, tavern, dungeon, market, forest, cave, title, app_background):
         fn(out)
 
 

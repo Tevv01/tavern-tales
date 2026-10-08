@@ -37,6 +37,7 @@ From 0.2.1 on, releases are signed and install over each other, keeping your sce
 
 ## Getting started
 
+- **Find your way**: the app opens on its main menu. **Scenes** leads to everything below; **Credits & licences** and **Privacy** are there too.
 - **Play a scene**: tap the play button on a scene's picture, or open it and tap **Play scene**. Switch individual sounds on and off and adjust their volumes on the **Ambience** tab; the **Events** tab has the sound-effect pads.
 - **Set up Hue lights**: tap the lightbulb on the home screen, connect your bridge and press its link button, then choose the **Room for scene lighting**. Each scene's **Lights** row lets you edit its colours, brightness, flicker and movement.
 - **Back up**: **⋮ → Back up library** on the home screen. Keep the file somewhere safe, such as Google Drive.
@@ -122,7 +123,9 @@ python tools/fetch_freesound.py --pick rain=584943   # download a chosen sound i
 python tools/import_sounds.py                        # make seamless, level-matched OGGs + SOUND_CREDITS.md
 ```
 
-The scene pictures are drawn procedurally with `python tools/generate_scene_art.py`. (`tools/generate_sounds.py` holds the original synthesized sounds; running it would overwrite the recordings.)
+`import_sounds.py` also writes the in-app sound credits (`app/src/main/assets/credits/sounds.json`); after changing `tools/sound_sources.json` by hand, `python tools/import_sounds.py --credits-only` refreshes both credit files without touching the audio.
+
+The scene pictures, the main menu's title picture and the app background are drawn procedurally with `python tools/generate_scene_art.py`. (`tools/generate_sounds.py` holds the original synthesized sounds; running it would overwrite the recordings.)
 
 ## Credits
 
