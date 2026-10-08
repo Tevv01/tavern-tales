@@ -8,6 +8,7 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import dev.tevv.taverntales.model.Scene
+import dev.tevv.taverntales.model.SoundEvent
 import dev.tevv.taverntales.model.SoundLayer
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -23,11 +24,13 @@ import kotlinx.coroutines.launch
 
 /**
  * What is currently audible. Only one scene is active at a time; [playing] holds the ids of its
- * layers that are on (layers that are fading out are already excluded).
+ * layers that are on (layers that are fading out are already excluded). [events] holds the ids of
+ * event one-shots still sounding.
  */
 data class MixerState(
     val sceneId: String? = null,
     val playing: Set<String> = emptySet(),
+    val events: Set<String> = emptySet(),
     val masterVolume: Float = 1f,
 )
 
@@ -48,7 +51,10 @@ class AmbienceMixer(private val context: Context, private val scope: CoroutineSc
         var on = true
     }
 
+    private class EventVoice(val eventId: String, val player: ExoPlayer, val volume: Float)
+
     private val voices = mutableMapOf<String, Voice>()
+    private val eventVoices = mutableListOf<EventVoice>()
     private var serviceRunning = false
 
     private val _state = MutableStateFlow(MixerState())
@@ -82,7 +88,30 @@ class AmbienceMixer(private val context: Context, private val scope: CoroutineSc
 
     fun stopAll() {
         voices.keys.toList().forEach(::stopLayer)
+        eventVoices.toList().forEach(::releaseEvent)
         _state.update { it.copy(sceneId = null) }
+    }
+
+    /** Plays an event one-shot on top of whatever is playing. Tapping again overlaps another copy. */
+    fun playEvent(event: SoundEvent) {
+        val player = newPlayer()
+        val voice = EventVoice(event.id, player, event.volume)
+        player.addListener(object : Player.Listener {
+            override fun onPlayerError(error: PlaybackException) {
+                _errors.tryEmit("Couldn't play \"${event.name}\" (${error.errorCodeName})")
+                releaseEvent(voice)
+            }
+
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                if (playbackState == Player.STATE_ENDED) releaseEvent(voice)
+            }
+        })
+        player.volume = gain(event.volume) * gain(_state.value.masterVolume)
+        player.setMediaItem(MediaItem.fromUri(event.uri))
+        player.prepare()
+        player.play()
+        eventVoices += voice
+        publishEvents()
     }
 
     fun setLayerVolume(layerId: String, volume: Float) {
@@ -98,6 +127,7 @@ class AmbienceMixer(private val context: Context, private val scope: CoroutineSc
     fun setMasterVolume(volume: Float) {
         _state.update { it.copy(masterVolume = volume) }
         voices.values.forEach(::applyVolume)
+        eventVoices.forEach { it.player.volume = gain(it.volume) * gain(volume) }
     }
 
     /** Fades out everything from the previously active scene. */
@@ -119,17 +149,7 @@ class AmbienceMixer(private val context: Context, private val scope: CoroutineSc
     }
 
     private fun createVoice(layer: SoundLayer): Voice {
-        val player = ExoPlayer.Builder(context)
-            // Focus is not requested so layers don't pause each other, and a music app can play alongside.
-            .setAudioAttributes(
-                AudioAttributes.Builder()
-                    .setUsage(C.USAGE_MEDIA)
-                    .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
-                    .build(),
-                /* handleAudioFocus = */ false,
-            )
-            .setWakeMode(C.WAKE_MODE_LOCAL)
-            .build()
+        val player = newPlayer()
         val voice = Voice(player, layer.volume)
         player.addListener(object : Player.Listener {
             override fun onPlayerError(error: PlaybackException) {
@@ -150,6 +170,29 @@ class AmbienceMixer(private val context: Context, private val scope: CoroutineSc
         player.setMediaItem(MediaItem.fromUri(layer.uri))
         player.prepare()
         return voice
+    }
+
+    private fun newPlayer(): ExoPlayer = ExoPlayer.Builder(context)
+        // Focus is not requested so layers don't pause each other, and a music app can play alongside.
+        .setAudioAttributes(
+            AudioAttributes.Builder()
+                .setUsage(C.USAGE_MEDIA)
+                .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
+                .build(),
+            /* handleAudioFocus = */ false,
+        )
+        .setWakeMode(C.WAKE_MODE_LOCAL)
+        .build()
+
+    private fun releaseEvent(voice: EventVoice) {
+        if (eventVoices.remove(voice)) {
+            voice.player.release()
+            publishEvents()
+        }
+    }
+
+    private fun publishEvents() {
+        _state.update { it.copy(events = eventVoices.map { v -> v.eventId }.toSet()) }
     }
 
     private fun fade(voice: Voice, target: Float, durationMs: Long, onDone: () -> Unit) {

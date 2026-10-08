@@ -21,3 +21,11 @@ Thumbs.db
 # Signing
 *.jks
 *.keystore
+
+# Raw downloads for tools/import_sounds.py (large; provenance is recorded in tools/sound_sources.json)
+sound-sources/
+__pycache__/
+
+
+# Keys
+.freesound-key

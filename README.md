@@ -8,13 +8,16 @@ Early development. `main` holds tested, working builds; new features are develop
 
 ## Features
 
-- **Scenes**: e.g. *Town*, *Forest*, *Dungeon*, each with its own set of sound layers.
-- **Live mixer**: toggle and set the volume of each layer (crowd chatter, rain, wind, tavern music) while the scene plays, including with the screen off. Layers fade in and out; one-shot (non-looping) sounds work for effects like a door slam.
-- **Your own audio**: add sounds from files on the phone. They aren't copied, so keep them where they are. OGG or WAV loops more seamlessly than MP3.
+- **Collections of scenes**: group scenes however you like (per campaign, per region...). The built-in **Essentials** collection has a Town, Tavern, Dungeon, Market, Forest and Cave, each with its own artwork and sounds.
+- **Live mixer**: toggle and set the volume of each layer (crowd chatter, rain, wind, tavern music) while the scene plays, including with the screen off. Layers fade in and out; one-shot (non-looping) sounds work for effects like a church bell.
+- **Events**: a pad of sound effects (fireball, explosion, holy light, thunder, sword clash...) available in every scene. Add your own and change their name, icon, colour, volume and sound.
+- **Your own audio and pictures**: add sounds from files on the phone (they aren't copied, so keep them where they are; OGG or WAV loops more seamlessly than MP3), and give any scene a picture from your gallery.
+
+- **Philips Hue**: connect your Hue Bridge (found automatically on your Wi-Fi) and give each scene its lights: colours, brightness and flicker effects (candle, fire) made in the app, or a scene from the Hue app. The built-in scenes come with lighting already. Playing a scene switches the lights too.
 
 ## Planned
 
-- **Hue sync**: connect to a Hue bridge on the local network and set lights per scene (colour, brightness), editable in the app.
+- Events that flash the lights (e.g. orange for a fireball).
 
 ## Building
 
@@ -27,3 +30,18 @@ Requires the Android SDK (installed with Android Studio) and JDK 17+ (Android St
 ```
 
 Or open the folder in Android Studio and press Run.
+
+## Built-in sounds and artwork
+
+The built-in sounds are CC0 (public domain) field recordings and effects from [Freesound](https://freesound.org); see [SOUND_CREDITS.md](SOUND_CREDITS.md) for each sound's source and author. They are fetched and processed by scripts (Python 3, packages in `tools/requirements.txt`):
+
+```sh
+pip install -r tools/requirements.txt
+python tools/fetch_freesound.py --list               # search Freesound; needs an API key in .freesound-key
+python tools/fetch_freesound.py --pick rain=584943   # download a chosen sound into sound-sources/
+python tools/import_sounds.py                        # make seamless, level-matched OGGs + SOUND_CREDITS.md
+```
+
+The scene pictures are drawn procedurally by `python tools/generate_scene_art.py`.
+
+The heading font is [Cinzel](https://github.com/NDISCOVER/Cinzel) (SIL Open Font License, see `licenses/`).
