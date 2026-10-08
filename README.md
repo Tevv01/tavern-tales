@@ -31,12 +31,15 @@ Or open the folder in Android Studio and press Run.
 
 ## Built-in sounds and artwork
 
-All built-in sounds and scene pictures are synthesized by scripts, not recorded or drawn, so there are no licensing concerns. To regenerate them (Python 3 with the packages in `tools/requirements.txt`):
+The built-in sounds are CC0 (public domain) field recordings and effects from [Freesound](https://freesound.org); see [SOUND_CREDITS.md](SOUND_CREDITS.md) for each sound's source and author. They are fetched and processed by scripts (Python 3, packages in `tools/requirements.txt`):
 
 ```sh
 pip install -r tools/requirements.txt
-python tools/generate_sounds.py        # app/src/main/assets/sounds/*.ogg
-python tools/generate_scene_art.py     # app/src/main/res/drawable-nodpi/bg_*.webp
+python tools/fetch_freesound.py --list               # search Freesound; needs an API key in .freesound-key
+python tools/fetch_freesound.py --pick rain=584943   # download a chosen sound into sound-sources/
+python tools/import_sounds.py                        # make seamless, level-matched OGGs + SOUND_CREDITS.md
 ```
+
+The scene pictures are drawn procedurally by `python tools/generate_scene_art.py`.
 
 The heading font is [Cinzel](https://github.com/NDISCOVER/Cinzel) (SIL Open Font License, see `licenses/`).

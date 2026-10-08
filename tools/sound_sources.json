@@ -1,1 +1,199 @@
-{}
+{
+  "birdsong": {
+    "file": "birdsong/385280__bajko__sfx-amb-forest-spring-afternoon-01-wav.ogg",
+    "title": "sfx_amb_forest_spring_afternoon-01.wav",
+    "author": "bajko",
+    "source": "https://freesound.org/people/bajko/sounds/385280/",
+    "license": "CC0 1.0"
+  },
+  "cave_wind": {
+    "file": "cave_wind/553080__Nox-Sound__Ambiance-Atmosphere-Cave-Loop-Stereo-ogg.ogg",
+    "title": "Ambiance_Atmosphere_Cave_Loop_Stereo.ogg",
+    "author": "Nox_Sound",
+    "source": "https://freesound.org/people/Nox_Sound/sounds/553080/",
+    "license": "CC0 1.0",
+    "exact_loop": true
+  },
+  "chains": {
+    "file": "chains/571375__cabled-mess__20180427-Iron-chain-wav.ogg",
+    "title": "20180427_Iron chain.wav",
+    "author": "cabled_mess",
+    "source": "https://freesound.org/people/cabled_mess/sounds/571375/",
+    "license": "CC0 1.0",
+    "sparse": 4
+  },
+  "church_bell": {
+    "file": "church_bell/425172__Audeption__Church-bell-wav.ogg",
+    "title": "Church bell.wav",
+    "author": "Audeption",
+    "source": "https://freesound.org/people/Audeption/sounds/425172/",
+    "license": "CC0 1.0"
+  },
+  "crickets": {
+    "file": "crickets/333221__hdfreema__Night-Crickets-Back-Porch-aiff.ogg",
+    "title": "Night Crickets Back Porch.aiff",
+    "author": "hdfreema",
+    "source": "https://freesound.org/people/hdfreema/sounds/333221/",
+    "license": "CC0 1.0"
+  },
+  "dark_drone": {
+    "file": "dark_drone/421826__Kinoton__Dark-Cave-Drone.ogg",
+    "title": "Dark Cave Drone",
+    "author": "Kinoton",
+    "source": "https://freesound.org/people/Kinoton/sounds/421826/",
+    "license": "CC0 1.0"
+  },
+  "event_arrows": {
+    "file": "event_arrows/410751__plantmonkey__Arrow-strike-mp3.ogg",
+    "title": "Arrow strike.mp3",
+    "author": "plantmonkey",
+    "source": "https://freesound.org/people/plantmonkey/sounds/410751/",
+    "license": "CC0 1.0",
+    "stack": [
+      0,
+      0.14,
+      0.31,
+      0.45
+    ]
+  },
+  "event_explosion": {
+    "file": "event_explosion/255111__rhapsodize__Cinematic-Boom-Rhapsodize-wav.ogg",
+    "title": "Cinematic_Boom_Rhapsodize.wav",
+    "author": "rhapsodize",
+    "source": "https://freesound.org/people/rhapsodize/sounds/255111/",
+    "license": "CC0 1.0"
+  },
+  "event_fire": {
+    "file": "event_fire/186932__ReadeOnly__fire-explosion-wav.ogg",
+    "title": "fire_explosion.wav",
+    "author": "ReadeOnly",
+    "source": "https://freesound.org/people/ReadeOnly/sounds/186932/",
+    "license": "CC0 1.0"
+  },
+  "event_light": {
+    "file": "event_light/392172__random-intruder__AHHHH.ogg",
+    "title": "AHHHH",
+    "author": "random_intruder",
+    "source": "https://freesound.org/people/random_intruder/sounds/392172/",
+    "license": "CC0 1.0"
+  },
+  "event_magic": {
+    "file": "event_magic/241809__suntemple__Magic-SFX-for-Games.ogg",
+    "title": "Magic SFX for Games ",
+    "author": "suntemple",
+    "source": "https://freesound.org/people/suntemple/sounds/241809/",
+    "license": "CC0 1.0"
+  },
+  "event_roar": {
+    "file": "event_roar/320345__999999990__Dino-Hiss-Dragon-Roar.ogg",
+    "title": "Dino Hiss Dragon Roar",
+    "author": "999999990",
+    "source": "https://freesound.org/people/999999990/sounds/320345/",
+    "license": "CC0 1.0",
+    "start": 2.85
+  },
+  "event_sword": {
+    "file": "event_sword/364530__Christopherderp__Swords-Clash-High-Quality-2.ogg",
+    "title": "Swords Clash - High Quality #2",
+    "author": "Christopherderp",
+    "source": "https://freesound.org/people/Christopherderp/sounds/364530/",
+    "license": "CC0 1.0",
+    "gain_db": -1.5
+  },
+  "event_thunder": {
+    "file": "event_thunder/534023__Fission9__Thunderclap.ogg",
+    "title": "Thunderclap",
+    "author": "Fission9",
+    "source": "https://freesound.org/people/Fission9/sounds/534023/",
+    "license": "CC0 1.0",
+    "limit_db": 10
+  },
+  "forest_breeze": {
+    "file": "forest_breeze/181801__keweldog__breeze-wav.ogg",
+    "title": "breeze.wav",
+    "author": "keweldog",
+    "source": "https://freesound.org/people/keweldog/sounds/181801/",
+    "license": "CC0 1.0"
+  },
+  "hearth_fire": {
+    "file": "hearth_fire/81801__silencyo__Silencyo-CC-Fire-in-Fireplace-Close-Up-Reverberant2-aif.ogg",
+    "title": "Silencyo_CC_Fire in Fireplace_Close Up_Reverberant2.aif",
+    "author": "silencyo",
+    "source": "https://freesound.org/people/silencyo/sounds/81801/",
+    "license": "CC0 1.0",
+    "limit_db": 15
+  },
+  "horse_cart": {
+    "file": "horse_cart/137843__thefilmbakery__Horse-and-Carriage-aif.ogg",
+    "title": "Horse and Carriage.aif",
+    "author": "thefilmbakery",
+    "source": "https://freesound.org/people/thefilmbakery/sounds/137843/",
+    "license": "CC0 1.0"
+  },
+  "market_crowd": {
+    "file": "market_crowd/239920__nikitralala__arabischesviertel-1-flac.ogg",
+    "title": "arabischesviertel_1.flac",
+    "author": "nikitralala",
+    "source": "https://freesound.org/people/nikitralala/sounds/239920/",
+    "license": "CC0 1.0"
+  },
+  "rain": {
+    "file": "rain/584943__richwise__Rain-Loop-3.ogg",
+    "title": "Rain Loop 3",
+    "author": "richwise",
+    "source": "https://freesound.org/people/richwise/sounds/584943/",
+    "license": "CC0 1.0"
+  },
+  "stream": {
+    "file": "stream/197023__Yuval__small-stream-forest.ogg",
+    "title": "small stream forest",
+    "author": "Yuval",
+    "source": "https://freesound.org/people/Yuval/sounds/197023/",
+    "license": "CC0 1.0"
+  },
+  "tavern_chatter": {
+    "file": "tavern_chatter/695295__brunoboselli__Pirate-Tavern.ogg",
+    "title": "Pirate Tavern",
+    "author": "brunoboselli",
+    "source": "https://freesound.org/people/brunoboselli/sounds/695295/",
+    "license": "CC0 1.0"
+  },
+  "tavern_music": {
+    "file": "tavern_music/522992__christislord__Celtic-mp3.ogg",
+    "title": "Celtic.mp3",
+    "author": "christislord",
+    "source": "https://freesound.org/people/christislord/sounds/522992/",
+    "license": "CC0 1.0",
+    "exact_loop": true
+  },
+  "torches": {
+    "file": "torches/414767__samarobryn__Crackling-Fire.ogg",
+    "title": "Crackling Fire",
+    "author": "samarobryn",
+    "source": "https://freesound.org/people/samarobryn/sounds/414767/",
+    "license": "CC0 1.0",
+    "limit_db": 12
+  },
+  "town_crowd": {
+    "file": "town_crowd/648483__nicoproson__CROWD-village-square-wav.ogg",
+    "title": "CROWD village square.wav",
+    "author": "nicoproson",
+    "source": "https://freesound.org/people/nicoproson/sounds/648483/",
+    "license": "CC0 1.0"
+  },
+  "water_drips": {
+    "file": "water_drips/177958__Sclolex__Water-Dripping-in-Cave-wav.ogg",
+    "title": "Water Dripping in Cave.wav",
+    "author": "Sclolex",
+    "source": "https://freesound.org/people/Sclolex/sounds/177958/",
+    "license": "CC0 1.0",
+    "limit_db": 12
+  },
+  "wind": {
+    "file": "wind/156414__felix-blume__Wind-blowing-into-some-cactus-spine-on-the-top-of-the-mounta.ogg",
+    "title": "Wind blowing into some cactus spine, on the top of the mountain, in the desert of Atacama (Chile).",
+    "author": "felix.blume",
+    "source": "https://freesound.org/people/felix.blume/sounds/156414/",
+    "license": "CC0 1.0"
+  }
+}

@@ -16,6 +16,12 @@ Manifest fields per sound (only "file" is required to process; the rest feed the
   start     seconds into the file, or "auto" (default): steadiest stretch for loops, first onset for one-shots
   length    seconds to keep (default 45 for loops, whole sound for one-shots)
   gain_db   extra gain after loudness matching (default 0)
+  exact_loop  true for material already made to loop (music): used whole, no crossfade
+  sparse      seconds between sounds: cut the recording into its separate sounds and scatter them
+              with silence between (chains, creaks), instead of looping it continuously
+  limit_db    how far peaks may be limited before the whole sound is turned down instead (default 6);
+              raise it for clicky material like fire crackle, where short peaks hide limiting well
+  stack       one-shots only: list of offsets (s) to layer copies at (one arrow -> a volley)
 
 Options: --out DIR (default: the assets folder), --manifest FILE, --credits FILE
 
@@ -30,6 +36,7 @@ from pathlib import Path
 import numpy as np
 import soundfile
 from scipy import signal
+from scipy.ndimage import minimum_filter1d, uniform_filter1d
 
 sys.path.insert(0, str(Path(__file__).parent))
 from generate_sounds import SR, write  # noqa: E402  (shared encoder settings)
@@ -44,9 +51,10 @@ CREDITS = ROOT / "SOUND_CREDITS.md"
 TARGET_RMS = {
     "tavern_music": -20, "town_crowd": -22, "tavern_chatter": -22, "market_crowd": -21, "rain": -22, "wind": -22,
     "hearth_fire": -24, "torches": -25, "horse_cart": -23, "birdsong": -24, "forest_breeze": -25, "stream": -23,
-    "crickets": -27, "water_drips": -26, "dark_drone": -24, "chains": -27, "cave_wind": -24, "church_bell": -20,
+    "crickets": -27, "water_drips": -26, "dark_drone": -24, "chains": -27, "cave_wind": -24,
 }
-EVENT_RMS = -17
+# One-shots are matched on their loudest 400 ms instead (the synthesized events sit around -12 there).
+EVENT_LOUDEST = -12
 DEFAULT_LOOP_SECONDS = 45
 CROSSFADE_SECONDS = 2.0
 
@@ -123,15 +131,119 @@ def make_one_shot(x, start, length):
     return seg
 
 
-def match_loudness(x, rms_db, gain_db=0.0, peak=0.9):  # headroom: Vorbis overshoots peaks slightly
-    active = x[np.max(np.abs(x), axis=1) > 1e-3 * np.max(np.abs(x))]
-    rms = np.sqrt(np.mean(active ** 2)) + 1e-12
-    x = x * 10 ** ((rms_db + gain_db) / 20) / rms
+def trim_silence(x, threshold_db=-60):
+    env = np.max(np.abs(x), axis=1)
+    loud = np.nonzero(env > 10 ** (threshold_db / 20) * env.max())[0]
+    return x[loud[0]:loud[-1] + 1] if len(loud) else x
+
+
+def exact_loop(x):
+    """For material made to loop (music): keep all of it, only smoothing the seam over 20 ms.
+
+    If it ends in a decay (the last notes ringing out), the loop ends where the decay starts and the
+    decay is mixed over the start, like a band going straight into the next round of the tune.
+    """
+    x = trim_silence(x)  # lossy previews often carry encoder padding at the ends
+    block = SR // 10
+    levels = 20 * np.log10(block_rms(x, block))
+    playing = np.nonzero(levels > np.median(levels) - 10)[0]
+    end = min(len(x), (playing[-1] + 2) * block)
+    tail = x[end:]
+    if len(tail) > SR // 2:
+        print(f"    {len(tail) / SR:.1f} s decay at the end mixed over the start")
+        x = x[:end].copy()
+        tail = tail[:len(x)]
+        x[:len(tail)] += tail
+    fade = int(0.02 * SR)
+    out = x[:-fade].copy()
+    t = np.linspace(0, 1, fade)[:, None]
+    out[:fade] = x[:fade] * np.sin(t * np.pi / 2) + x[-fade:] * np.cos(t * np.pi / 2)
+    return out
+
+
+def sparse_loop(x, length, mean_gap, seed=5):
+    """Cut the recording into its individual sounds and scatter them with silence between (e.g. chains)."""
+    rng = np.random.default_rng(seed)
+    block = SR // 50
+    levels = 20 * np.log10(block_rms(x, block))
+    active = levels > levels.max() - 30
+    events, start = [], None
+    for i, on in enumerate(np.append(active, False)):
+        if on and start is None:
+            start = i
+        elif not on and start is not None:
+            if events and start - events[-1][1] < 8:  # merge sounds less than 160 ms apart
+                events[-1] = (events[-1][0], i)
+            else:
+                events.append((start, i))
+            start = None
+    events = [(max(0, a - 3) * block, min(len(x), (b + 3) * block)) for a, b in events if b - a >= 5]
+    if not events:
+        sys.exit("no distinct sounds found for sparse loop")
+    buf = np.zeros((length + 10 * SR, 2))
+    t = rng.uniform(0, mean_gap) * SR
+    while t < length:
+        a, b = events[rng.integers(len(events))]
+        piece = x[a:b].copy()
+        fade = min(len(piece) // 2, SR // 100)
+        piece[:fade] *= np.linspace(0, 1, fade)[:, None]
+        piece[-fade:] *= np.linspace(1, 0, fade)[:, None]
+        s = int(t)
+        buf[s:s + len(piece)] += piece * rng.uniform(0.5, 1.0)
+        t += len(piece) + rng.exponential(mean_gap) * SR
+    out = buf[:length].copy()  # wrap the overhang onto the start so it loops
+    tail = buf[length:]
+    out[:len(tail)] += tail[:length]
+    print(f"    sparse: {len(events)} distinct sounds scattered")
+    return out
+
+
+def stack(x, offsets):
+    """Layer copies of a one-shot at the given offsets (s), alternating left and right."""
+    out = np.zeros((len(x) + int(max(offsets) * SR), 2))
+    for i, offset in enumerate(offsets):
+        s = int(offset * SR)
+        angle = (0.5 + (0.35 if i % 2 else -0.35)) * np.pi / 2
+        out[s:s + len(x)] += x * np.array([np.cos(angle), np.sin(angle)]) * np.sqrt(2) * (1 - 0.1 * i)
+    return out
+
+
+def momentary_max_rms(x):
+    """Loudest 400 ms stretch; used for one-shots, whose quiet tails would skew an overall average."""
+    w = int(0.4 * SR)
+    if len(x) <= w:
+        return np.sqrt(np.mean(x ** 2))
+    return np.sqrt(uniform_filter1d(np.mean(x ** 2, axis=1), w).max())
+
+
+def limit(x, ceiling, max_reduction_db, circular):
+    """Peak limiter: pulls peaks above `ceiling` down by up to `max_reduction_db`; if peaks are hotter
+    than that, the whole sound is turned down instead, so transients aren't squashed flat."""
+    allowed = ceiling * 10 ** (max_reduction_db / 20)
     top = np.max(np.abs(x))
-    if top > peak:
-        print(f"    peak-limited by {20 * np.log10(top / peak):.1f} dB")
-        x *= peak / top
-    return x
+    if top > allowed:
+        print(f"    turned down {20 * np.log10(top / allowed):.1f} dB (peaks beyond {max_reduction_db} dB of limiting)")
+        x = x * allowed / top
+    if np.max(np.abs(x)) <= ceiling:
+        return x
+    w = int(0.01 * SR)
+    amp = np.max(np.abs(x), axis=1)
+    if circular:  # loops: the gain curve must also be seamless
+        amp = np.concatenate([amp[-2 * w:], amp, amp[:2 * w]])
+    gain = np.minimum(1.0, ceiling / np.maximum(amp, 1e-9))
+    # Hold the minimum over +-w, then average over +-w: every sample within w of a peak stays at or
+    # below that peak's required gain, and the gain changes smoothly (10 ms attack and release).
+    gain = minimum_filter1d(gain, 2 * w + 1)
+    gain = uniform_filter1d(gain, 2 * w + 1)
+    if circular:
+        gain = gain[2 * w:-2 * w]
+    return x * gain[:, None]
+
+
+def match_loudness(x, rms_db, gain_db, one_shot, limit_db, ceiling=0.85):  # headroom: Vorbis overshoots peaks
+    rms = momentary_max_rms(x) if one_shot else np.sqrt(np.mean(x ** 2))
+    x = x * 10 ** ((rms_db + gain_db) / 20) / (rms + 1e-12)
+    return limit(x, ceiling, max_reduction_db=limit_db, circular=not one_shot)
 
 
 def process(name, entry):
@@ -144,9 +256,18 @@ def process(name, entry):
         start = first_onset(x) if one_shot else steadiest_start(x, length + CROSSFADE_SECONDS * SR)
     else:
         start = int(start * SR)
-    out = make_one_shot(x, start, length) if one_shot else make_loop(x, start, length)
-    rms = EVENT_RMS if name.startswith("event_") else TARGET_RMS.get(name, -22)
-    return match_loudness(out, rms, entry.get("gain_db", 0.0)), start / SR
+    if one_shot:
+        out = make_one_shot(x, start, length)
+        if entry.get("stack"):
+            out = stack(out, entry["stack"])
+    elif entry.get("exact_loop"):
+        out, start = exact_loop(x), 0
+    elif entry.get("sparse"):
+        out, start = sparse_loop(x, length, entry["sparse"]), 0
+    else:
+        out = make_loop(x, start, length)
+    rms = EVENT_LOUDEST if one_shot else TARGET_RMS.get(name, -22)
+    return match_loudness(out, rms, entry.get("gain_db", 0.0), one_shot, entry.get("limit_db", 6)), start / SR
 
 
 def write_credits(manifest, names, path):
