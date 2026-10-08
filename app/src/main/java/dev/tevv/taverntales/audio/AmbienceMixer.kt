@@ -17,6 +17,8 @@ import androidx.media3.exoplayer.audio.DefaultAudioTrackBufferSizeProvider
 import dev.tevv.taverntales.model.Scene
 import dev.tevv.taverntales.model.SoundEvent
 import dev.tevv.taverntales.model.SoundLayer
+import kotlin.math.PI
+import kotlin.math.sin
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -43,6 +45,8 @@ data class MixerState(
 
 /**
  * Plays any number of sound layers at once, one [ExoPlayer] per layer, with fades on start/stop.
+ * Switching from one playing scene to another crossfades them over the time the caller passes
+ * (the user's scene change setting); fades follow an equal-power curve ([fadeCurve]).
  *
  * Lives for the whole process (owned by [dev.tevv.taverntales.AppContainer]), not by an Activity, so
  * audio continues when the UI is closed. [AmbienceService] is started while anything plays to keep
@@ -70,26 +74,39 @@ class AmbienceMixer(private val context: Context, private val scope: CoroutineSc
     private val _errors = MutableSharedFlow<String>(extraBufferCapacity = 8)
     val errors: SharedFlow<String> = _errors.asSharedFlow()
 
-    /** Makes [scene] the active scene and starts its auto-play layers. */
-    fun startScene(scene: Scene) {
-        switchTo(scene.id)
-        scene.layers.filter { it.autoPlay }.forEach(::play)
+    /**
+     * Makes [scene] the active scene and starts its auto-play layers. If another scene is audible,
+     * the two crossfade over [crossfadeMs].
+     */
+    fun startScene(scene: Scene, crossfadeMs: Long = FADE_IN_MS) {
+        val fadeMs = fadeFor(scene.id, crossfadeMs)
+        switchTo(scene.id, fadeMs)
+        scene.layers.filter { it.autoPlay }.forEach { play(it, fadeMs) }
     }
 
-    fun toggleLayer(sceneId: String, layer: SoundLayer) {
+    /** Turns one layer on or off; turning on a layer of another scene crossfades over [crossfadeMs]. */
+    fun toggleLayer(sceneId: String, layer: SoundLayer, crossfadeMs: Long = FADE_IN_MS) {
         if (layer.id in _state.value.playing) {
             stopLayer(layer.id)
         } else {
-            switchTo(sceneId)
-            play(layer)
+            val fadeMs = fadeFor(sceneId, crossfadeMs)
+            switchTo(sceneId, fadeMs)
+            play(layer, fadeMs)
         }
     }
 
-    fun stopLayer(layerId: String) {
+    /** True if starting [sceneId] would replace another scene that is playing (a crossfade, not a start). */
+    fun isSwitching(sceneId: String): Boolean = _state.value.sceneId != sceneId && _state.value.playing.isNotEmpty()
+
+    private fun fadeFor(sceneId: String, crossfadeMs: Long) = if (isSwitching(sceneId)) crossfadeMs else FADE_IN_MS
+
+    fun stopLayer(layerId: String) = stopLayer(layerId, FADE_OUT_MS)
+
+    private fun stopLayer(layerId: String, fadeMs: Long) {
         val voice = voices[layerId] ?: return
         if (!voice.on) return
         voice.on = false
-        fade(voice, target = 0f, durationMs = FADE_OUT_MS) { release(layerId, voice) }
+        fade(voice, target = 0f, durationMs = fadeMs) { release(layerId, voice) }
         publish()
     }
 
@@ -137,21 +154,21 @@ class AmbienceMixer(private val context: Context, private val scope: CoroutineSc
         eventVoices.forEach { it.player.volume = gain(it.volume) * gain(volume) }
     }
 
-    /** Fades out everything from the previously active scene. */
-    private fun switchTo(sceneId: String) {
+    /** Fades out everything from the previously active scene over [fadeMs]. */
+    private fun switchTo(sceneId: String, fadeMs: Long) {
         if (_state.value.sceneId == sceneId) return
-        voices.keys.toList().forEach(::stopLayer)
+        voices.keys.toList().forEach { stopLayer(it, fadeMs) }
         _state.update { it.copy(sceneId = sceneId) }
     }
 
-    private fun play(layer: SoundLayer) {
+    private fun play(layer: SoundLayer, fadeMs: Long) {
         val voice = voices[layer.id] ?: createVoice(layer).also { voices[layer.id] = it }
         voice.on = true
         voice.layerVolume = layer.volume
         // A one-shot that already finished is restarted from the beginning.
         if (voice.player.playbackState == Player.STATE_ENDED) voice.player.seekTo(0)
         voice.player.play()
-        fade(voice, target = 1f, durationMs = FADE_IN_MS) {}
+        fade(voice, target = 1f, durationMs = fadeMs) {}
         publish()
     }
 
@@ -229,6 +246,15 @@ class AmbienceMixer(private val context: Context, private val scope: CoroutineSc
     private fun fade(voice: Voice, target: Float, durationMs: Long, onDone: () -> Unit) {
         voice.fadeJob?.cancel()
         voice.fadeJob = scope.launch {
+            // A new player is still loading its file: start fading in once it can be heard, so a
+            // crossfade isn't half over before the new scene is audible.
+            if (target > voice.fade) {
+                var waited = 0L
+                while (voice.player.playbackState.let { it == Player.STATE_IDLE || it == Player.STATE_BUFFERING } && waited < MAX_LOAD_WAIT_MS) {
+                    delay(FADE_STEP_MS)
+                    waited += FADE_STEP_MS
+                }
+            }
             val start = voice.fade
             val steps = (durationMs / FADE_STEP_MS).coerceAtLeast(1)
             for (i in 1..steps) {
@@ -241,7 +267,7 @@ class AmbienceMixer(private val context: Context, private val scope: CoroutineSc
     }
 
     private fun applyVolume(voice: Voice) {
-        voice.player.volume = gain(voice.layerVolume) * gain(_state.value.masterVolume) * voice.fade
+        voice.player.volume = gain(voice.layerVolume) * gain(_state.value.masterVolume) * fadeCurve(voice.fade)
     }
 
     private fun release(layerId: String, voice: Voice) {
@@ -271,9 +297,17 @@ class AmbienceMixer(private val context: Context, private val scope: CoroutineSc
         private const val FADE_IN_MS = 1500L
         private const val FADE_OUT_MS = 1500L
         private const val FADE_STEP_MS = 40L
+        private const val MAX_LOAD_WAIT_MS = 3_000L
         private const val LAYER_OUTPUT_BUFFER_US = 2_000_000
 
         /** Maps a 0..1 slider position to amplitude gain; squaring makes the slider feel even to the ear. */
         fun gain(slider: Float): Float = slider.coerceIn(0f, 1f).let { it * it }
+
+        /**
+         * Amplitude for fade progress 0..1, on an equal-power curve: while one scene fades out and
+         * another fades in, the total loudness stays even instead of dipping in the middle
+         * (sin² + cos² = 1).
+         */
+        fun fadeCurve(progress: Float): Float = sin(progress.coerceIn(0f, 1f) * PI / 2).toFloat()
     }
 }

@@ -124,7 +124,7 @@ fun TavernTalesNavHost(container: AppContainer, crashReporting: CrashReporting) 
         }
         composable<HomeRoute> {
             HomeScreen(
-                viewModel = viewModel { HomeViewModel(container.library, container.mixer, container.launcher, container.backgrounds, container.backup) },
+                viewModel = viewModel { HomeViewModel(container.library, container.mixer, container.launcher, container.backgrounds, container.backup, container.preferences) },
                 snackbar = snackbar,
                 onBack = { navController.popBackStack() },
                 onOpenScene = { navController.navigate(SceneRoute(it)) },

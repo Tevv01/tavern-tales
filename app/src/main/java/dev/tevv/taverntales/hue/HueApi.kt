@@ -121,8 +121,8 @@ class HueApi(private val ip: String, expectedPin: String?) {
         HueParsing.v2Errors(response)?.let { throw HueException(it) }
     }
 
-    suspend fun recall(appKey: String, sceneId: String) {
-        val response = put("/clip/v2/resource/scene/$sceneId", """{"recall":{"action":"active"}}""", appKey)
+    suspend fun recall(appKey: String, sceneId: String, transitionMs: Long) {
+        val response = put("/clip/v2/resource/scene/$sceneId", LightCommands.recall(transitionMs).toString(), appKey)
         HueParsing.v2Errors(response)?.let { throw HueException(it) }
     }
 

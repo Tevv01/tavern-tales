@@ -13,6 +13,7 @@ An Android app for running ambience at the tabletop RPG table. Each scene layers
 
 **Live ambience mixer**
 - Each scene is made of sound layers (crowds, rain, fire, music...) that you switch on and off and mix while it plays. Sounds fade in and out smoothly.
+- Switching from one scene to another crossfades the sound and the lights together, so the tavern melts into the forest instead of cutting. Choose how long in **Scenes → ⋮ → Scene changes**: quick (1.5 s), smooth (4 s) or slow (8 s).
 - Plays on with the screen off, with a "now playing" notification and a Stop button.
 - Add your own audio files. One-shot (non-looping) sounds work for effects like a church bell.
 

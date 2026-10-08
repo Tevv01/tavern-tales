@@ -15,6 +15,14 @@ object LightCommands {
      * Commands for [lights] (all in the target room). Lights are taken in name order so the same bulb
      * gets the same colour every time; slots repeat when there are more lights than colours.
      */
+    /** Recalls a Hue scene, fading the lights to it over [transitionMs]. */
+    fun recall(transitionMs: Long): JsonObject = buildJsonObject {
+        putJsonObject("recall") {
+            put("action", "active")
+            put("duration", transitionMs)
+        }
+    }
+
     fun build(setup: LightSetup, lights: List<HueLight>, transitionMs: Int = 1500): List<Pair<String, JsonObject>> {
         val ordered = ordered(lights)
         if (setup.brightness <= 0f || setup.slots.isEmpty()) {

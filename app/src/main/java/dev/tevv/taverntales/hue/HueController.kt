@@ -59,6 +59,9 @@ data class HueGroupRef(val id: String, val type: String, val name: String)
 /** A bridge seen on the local network but not necessarily paired. */
 data class FoundBridge(val name: String, val ip: String)
 
+/** How long a light change normally fades: starting a scene from silence, "Set now", edits. */
+const val DEFAULT_LIGHT_TRANSITION_MS = 1500L
+
 /**
  * Pairing, discovery and scene recall for one Philips Hue bridge. Process-wide (in the AppContainer);
  * the pairing is stored in `filesDir/hue.json`.
@@ -144,24 +147,32 @@ class HueController(context: Context, private val scope: CoroutineScope) {
         save(bridge.copy(group = HueGroupRef(group.id, group.type, group.name)))
     }
 
-    /** Switches the lights to [scene] in the background; failures are reported on [messages]. */
-    fun recall(scene: HueSceneRef) = launchLightChange("Couldn't set the lights to \"${scene.name}\"") { bridge, api ->
-        flashBaseline = null
-        api.recall(bridge.appKey, scene.id)
-    }
+    /**
+     * Switches the lights to [scene] in the background, fading over [transitionMs]; failures are
+     * reported on [messages].
+     */
+    fun recall(scene: HueSceneRef, transitionMs: Long = DEFAULT_LIGHT_TRANSITION_MS) =
+        launchLightChange("Couldn't set the lights to \"${scene.name}\"") { bridge, api ->
+            flashBaseline = null
+            api.recall(bridge.appKey, scene.id, transitionMs)
+        }
 
     /**
-     * Applies a light setup to the chosen room or zone in the background. With [animate], the lights
-     * then keep drifting gently (see [LightSetup.motion]) until the next light change or [stopMotion].
+     * Applies a light setup to the chosen room or zone in the background, fading over [transitionMs].
+     * With [animate], the lights then keep drifting gently (see [LightSetup.motion]) until the next
+     * light change or [stopMotion], starting once the fade has finished.
      */
-    fun apply(setup: LightSetup, animate: Boolean = false) = launchLightChange("Couldn't set the lights") { bridge, api ->
-        flashBaseline = null
-        val room = room(bridge, api)
-        val lights = api.lights(bridge.appKey).filter(room::contains)
-        if (lights.isEmpty()) throw HueException("there are no lights in \"${room.name}\"")
-        sendSetup(bridge, api, setup, lights, room.name, transitionMs = 1500)
-        if (animate && setup.motion > 0f && setup.brightness > 0f) animate(bridge, api, setup, lights)
-    }
+    fun apply(setup: LightSetup, animate: Boolean = false, transitionMs: Long = DEFAULT_LIGHT_TRANSITION_MS) =
+        launchLightChange("Couldn't set the lights") { bridge, api ->
+            flashBaseline = null
+            val room = room(bridge, api)
+            val lights = api.lights(bridge.appKey).filter(room::contains)
+            if (lights.isEmpty()) throw HueException("there are no lights in \"${room.name}\"")
+            sendSetup(bridge, api, setup, lights, room.name, transitionMs.toInt())
+            if (animate && setup.motion > 0f && setup.brightness > 0f) {
+                animate(bridge, api, setup, lights, settleMs = maxOf(LIGHT_SETTLE_MS, transitionMs))
+            }
+        }
 
     /**
      * Lights up the room for an event: the steps go to the room's grouped light so every bulb
@@ -197,7 +208,7 @@ class HueController(context: Context, private val scope: CoroutineScope) {
         }
         flashBaseline = null
         if (restoreTo != null && animate && restoreTo.motion > 0f && restoreTo.brightness > 0f) {
-            animate(bridge, api, restoreTo, lights)
+            animate(bridge, api, restoreTo, lights, settleMs = LIGHT_SETTLE_MS)
         }
     }
 
@@ -249,7 +260,7 @@ class HueController(context: Context, private val scope: CoroutineScope) {
      * Nudges one light at a time, cycling through the room so each light gets a new target about once
      * per [LightCommands.motionPeriodMs], fading to it over that same period. Runs until cancelled.
      */
-    private suspend fun animate(startBridge: HueBridge, startApi: HueApi, setup: LightSetup, lights: List<HueLight>) {
+    private suspend fun animate(startBridge: HueBridge, startApi: HueApi, setup: LightSetup, lights: List<HueLight>, settleMs: Long) {
         var bridge = startBridge
         var api = startApi
         val ordered = LightCommands.ordered(lights)
@@ -259,7 +270,7 @@ class HueController(context: Context, private val scope: CoroutineScope) {
         var failures = 0
         moving = true
         try {
-            delay(LIGHT_SETTLE_MS) // let the scene's own fade finish first
+            delay(settleMs) // let the scene's own fade finish first
             while (true) {
                 for ((index, light) in ordered.withIndex()) {
                     LightCommands.motionStep(setup, light, index, random)?.let { body ->
