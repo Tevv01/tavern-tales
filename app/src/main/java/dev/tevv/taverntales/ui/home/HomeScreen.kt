@@ -25,6 +25,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.BugReport
@@ -98,6 +99,7 @@ private sealed interface HomeDialog {
 fun HomeScreen(
     viewModel: HomeViewModel,
     snackbar: SnackbarHostState,
+    onBack: () -> Unit,
     onOpenScene: (sceneId: String) -> Unit,
     onOpenHueSetup: () -> Unit,
     /** Null when this build can't report crashes (debug builds): the menu item is hidden. */
@@ -120,10 +122,15 @@ fun HomeScreen(
     }
 
     Scaffold(
+        containerColor = Color.Transparent,
+        contentColor = MaterialTheme.colorScheme.onBackground,
         topBar = {
             TopAppBar(
                 title = {
-                    Text("Tavern Tales", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primary)
+                    Text("Scenes", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primary)
+                },
+                navigationIcon = {
+                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back to the menu") }
                 },
                 actions = {
                     IconButton(onClick = onOpenHueSetup) {
@@ -168,7 +175,7 @@ fun HomeScreen(
                         }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
             )
         },
         bottomBar = {
