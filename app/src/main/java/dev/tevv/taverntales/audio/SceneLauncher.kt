@@ -1,6 +1,8 @@
 package dev.tevv.taverntales.audio
 
 import dev.tevv.taverntales.data.LibraryRepository
+import dev.tevv.taverntales.data.Preferences
+import dev.tevv.taverntales.hue.DEFAULT_LIGHT_TRANSITION_MS
 import dev.tevv.taverntales.hue.HueController
 import dev.tevv.taverntales.model.LightSetup
 import dev.tevv.taverntales.model.Scene
@@ -18,11 +20,15 @@ import kotlinx.coroutines.launch
  *
  * A light setup's gentle movement only runs while its scene is the active one; it stops when the
  * sound is stopped (and is replaced when another scene's lights are applied).
+ *
+ * Switching from one playing scene to another crossfades sound and lights over the same time, the
+ * user's [Preferences.sceneChange]; starting from silence uses the quick default fades.
  */
 class SceneLauncher(
     private val mixer: AmbienceMixer,
     private val hue: HueController,
     private val library: LibraryRepository,
+    private val preferences: Preferences,
     scope: CoroutineScope,
 ) {
     init {
@@ -32,14 +38,25 @@ class SceneLauncher(
     }
 
     fun start(scene: Scene) {
-        mixer.startScene(scene)
-        applyLights(scene)
+        val transitionMs = lightTransitionFor(scene.id)
+        mixer.startScene(scene, crossfadeMs)
+        applyLights(scene, transitionMs)
     }
 
-    /** Sets the lights for [scene]: its own light setup if it has one, else its linked Hue scene. */
-    fun applyLights(scene: Scene) {
-        scene.lighting?.let { previewLighting(scene.id, it) } ?: scene.lights?.let(hue::recall)
+    /**
+     * Sets the lights for [scene]: its own light setup if it has one, else its linked Hue scene,
+     * changing over [transitionMs].
+     */
+    fun applyLights(scene: Scene, transitionMs: Long = DEFAULT_LIGHT_TRANSITION_MS) {
+        val animate = mixer.state.value.sceneId == scene.id
+        scene.lighting?.let { hue.apply(it, animate, transitionMs) } ?: scene.lights?.let { hue.recall(it, transitionMs) }
     }
+
+    private val crossfadeMs get() = preferences.sceneChange.value.durationMs
+
+    /** The scene change time if [sceneId] replaces a playing scene, else the usual quick change. */
+    private fun lightTransitionFor(sceneId: String) =
+        if (mixer.isSwitching(sceneId)) crossfadeMs else DEFAULT_LIGHT_TRANSITION_MS
 
     /** Shows [setup] on the lights, moving if [sceneId] is the scene currently playing. */
     fun previewLighting(sceneId: String, setup: LightSetup) {
@@ -60,7 +77,8 @@ class SceneLauncher(
     /** Toggles one layer; if that makes [scene] the active scene, its lights are switched too. */
     fun toggleLayer(scene: Scene, layer: SoundLayer) {
         val switching = mixer.state.value.sceneId != scene.id
-        mixer.toggleLayer(scene.id, layer)
-        if (switching) applyLights(scene)
+        val transitionMs = lightTransitionFor(scene.id)
+        mixer.toggleLayer(scene.id, layer, crossfadeMs)
+        if (switching) applyLights(scene, transitionMs)
     }
 }

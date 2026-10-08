@@ -8,6 +8,8 @@ import dev.tevv.taverntales.audio.AmbienceMixer
 import dev.tevv.taverntales.audio.SceneLauncher
 import dev.tevv.taverntales.data.BackgroundStore
 import dev.tevv.taverntales.data.LibraryRepository
+import dev.tevv.taverntales.data.Preferences
+import dev.tevv.taverntales.data.SceneChange
 import dev.tevv.taverntales.data.backup.BackupException
 import dev.tevv.taverntales.data.backup.BackupManager
 import dev.tevv.taverntales.model.Scene
@@ -26,9 +28,13 @@ class HomeViewModel(
     private val launcher: SceneLauncher,
     private val backgrounds: BackgroundStore,
     private val backup: BackupManager,
+    private val preferences: Preferences,
 ) : ViewModel() {
     val library = repository.library
     val mixerState = mixer.state
+    val sceneChange = preferences.sceneChange
+
+    fun setSceneChange(value: SceneChange) = preferences.setSceneChange(value)
 
     /** True while a backup or restore runs. */
     private val _busy = MutableStateFlow<String?>(null)

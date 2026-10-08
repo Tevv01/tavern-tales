@@ -48,6 +48,7 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.PrivacyTip
 import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -88,6 +89,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.tevv.taverntales.audio.MixerState
+import dev.tevv.taverntales.data.SceneChange
 import dev.tevv.taverntales.model.Scene
 import dev.tevv.taverntales.model.SceneCollection
 import dev.tevv.taverntales.model.collectionOf
@@ -107,6 +109,7 @@ private sealed interface HomeDialog {
     data class RenameScene(val scene: Scene) : HomeDialog
     data class MoveScene(val scene: Scene) : HomeDialog
     data class DeleteScene(val scene: Scene) : HomeDialog
+    data object ChooseSceneChange : HomeDialog
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -127,6 +130,7 @@ fun HomeScreen(
     var dialog by remember { mutableStateOf<HomeDialog?>(null) }
     val activeScene = mixer.sceneId?.let { library.findScene(it) }
     val busy by viewModel.busy.collectAsStateWithLifecycle()
+    val sceneChange by viewModel.sceneChange.collectAsStateWithLifecycle()
     var restoreFrom by remember { mutableStateOf<Uri?>(null) }
 
     LaunchedEffect(Unit) { viewModel.messages.collect { snackbar.showSnackbar(it) } }
@@ -178,6 +182,14 @@ fun HomeScreen(
                                 onClick = {
                                     menuOpen = false
                                     pickBackup.launch(arrayOf("application/zip", "application/octet-stream"))
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Scene changes: ${sceneChange.label}") },
+                                leadingIcon = { Icon(Icons.Default.SwapHoriz, contentDescription = null) },
+                                onClick = {
+                                    menuOpen = false
+                                    dialog = HomeDialog.ChooseSceneChange
                                 },
                             )
                             DropdownMenuItem(
@@ -328,6 +340,14 @@ fun HomeScreen(
             label = { it.name },
             selected = library.collectionOf(d.scene.id),
             onPick = { viewModel.moveScene(d.scene.id, it.id); dialog = null },
+            onDismiss = { dialog = null },
+        )
+        HomeDialog.ChooseSceneChange -> ChoiceDialog(
+            title = "Fade between scenes",
+            options = SceneChange.entries,
+            label = { it.description },
+            selected = sceneChange,
+            onPick = { viewModel.setSceneChange(it); dialog = null },
             onDismiss = { dialog = null },
         )
         is HomeDialog.DeleteScene -> ConfirmDialog(
