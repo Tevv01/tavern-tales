@@ -64,6 +64,12 @@ Kotlin, Jetpack Compose and Material 3, Media3/ExoPlayer for audio, OkHttp for t
 
 Or open the folder in Android Studio and press Run.
 
+### Build variants and releases
+
+- **debug** installs as *Tavern Tales Debug* (`dev.tevv.taverntales.debug`, red bug badge), next to the real app and with its own data.
+- **release** (`./gradlew assembleRelease`) is shrunk and signed. Signing is configured outside the repository: `local.properties` points at a `keystore.properties` file with `storeFile`, `storePassword`, `keyAlias` and `keyPassword`. Without it, the release APK is unsigned.
+- **releaseTest** (`./gradlew assembleReleaseTest`) is the same release build installed as *Tavern Tales Test* (blue check badge), to check a release on a phone without touching the real app.
+
 ### On-device tests
 
 `SessionStressTest` runs two compressed game nights on a real phone and checks that audio players, threads and memory are all released. Install and run it directly. **Don't use `connectedDebugAndroidTest` on a phone with data you care about**: it uninstalls the app afterwards, deleting its library and Hue pairing.
@@ -71,7 +77,7 @@ Or open the folder in Android Studio and press Run.
 ```sh
 ./gradlew installDebug installDebugAndroidTest
 adb shell am instrument -w -e class dev.tevv.taverntales.audio.SessionStressTest \
-    dev.tevv.taverntales.test/androidx.test.runner.AndroidJUnitRunner
+    dev.tevv.taverntales.debug.test/androidx.test.runner.AndroidJUnitRunner
 ```
 
 It plays real audio, so mute the phone first.

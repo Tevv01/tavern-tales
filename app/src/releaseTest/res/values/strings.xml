@@ -1,0 +1,4 @@
+<resources>
+    <!-- Release test builds (dev.tevv.taverntales.releasetest) are labelled so they can't be mistaken for the real app. -->
+    <string name="app_name">Tavern Tales Test</string>
+</resources>
