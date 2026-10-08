@@ -91,7 +91,7 @@ internal fun <T> ReorderableGrid(
         var awaitingSave by remember { mutableStateOf(false) }
         var dragTopLeft by remember { mutableStateOf(Offset.Zero) }
         LaunchedEffect(ids) { if (awaitingSave && ids == order.toList()) awaitingSave = false }
-        val shown = if (dragging != null || awaitingSave) order.toList() else ids
+        val shown = if ((dragging != null || awaitingSave) && order.isNotEmpty()) order.toList() else ids
 
         val rows = (items.size + columns - 1) / columns
         val height = rows * cellH + (rows - 1).coerceAtLeast(0) * gapPx
@@ -110,7 +110,12 @@ internal fun <T> ReorderableGrid(
                     var travelled by remember { mutableFloatStateOf(0f) }
                     val gestures = Modifier.pointerInput(itemId) {
                         val slop = viewConfiguration.touchSlop
+                        // The detector also reports a cancel when the tile just leaves the screen
+                        // (scrolled away, collection folded) without being held: ignore those.
+                        var started = false
                         fun finish() {
+                            if (!started) return
+                            started = false
                             val moved = order.toList() != currentIds
                             if (moved) {
                                 awaitingSave = true
@@ -124,6 +129,7 @@ internal fun <T> ReorderableGrid(
                         }
                         detectDragGesturesAfterLongPress(
                             onDragStart = {
+                                started = true
                                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                                 order.clear()
                                 order.addAll(currentIds)
@@ -187,7 +193,7 @@ internal class CollectionReorderState(private val listState: LazyListState) {
         listTop = rootY
     }
 
-    fun shown(ids: List<String>): List<String> = if (reordering) order.toList() else ids
+    fun shown(ids: List<String>): List<String> = if (reordering && order.isNotEmpty()) order.toList() else ids
 
     /** Call when the library's order changes: once it matches the dropped order, the list follows the library again. */
     fun onLibraryChanged(ids: List<String>) {
@@ -217,8 +223,9 @@ internal class CollectionReorderState(private val listState: LazyListState) {
         order.addAll(next)
     }
 
-    /** Ends the drag; returns the new order if it changed. */
+    /** Ends the drag; returns the new order if it changed. Does nothing if no drag is running. */
     fun end(ids: List<String>): List<String>? {
+        if (dragging == null) return null
         val result = order.toList().takeIf { it != ids }
         awaitingSave = result != null
         dragging = null
@@ -284,12 +291,18 @@ internal fun Modifier.dragToReorder(
         .pointerInput(key) {
             val slop = viewConfiguration.touchSlop
             var travelled = 0f
+            // The detector also reports a cancel when the header just leaves the screen (scrolled
+            // away) without being held: ignore those, or the list would show an empty order.
+            var started = false
             fun finish() {
+                if (!started) return
+                started = false
                 val newOrder = state.end(currentIds)
                 if (newOrder != null) currentOnReorder(newOrder) else if (travelled < slop) currentOnHold()
             }
             detectDragGesturesAfterLongPress(
                 onDragStart = { position ->
+                    started = true
                     haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                     travelled = 0f
                     state.start(key, currentIds, headerTop + position.y)
