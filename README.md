@@ -9,6 +9,7 @@ An Android app for running ambience at the tabletop RPG table. Each scene layers
 **Scenes and collections**
 - Group scenes into collections (per campaign, per region, ...). The built-in **Essentials** collection has a Town, Tavern, Dungeon, Market, Forest and Cave, each with its own artwork, sounds and lighting.
 - Give any scene a picture from your gallery, and move scenes between collections.
+- Tap a collection's name to fold it away (one for D&D, one for a board game night...); folded collections stay folded and show when one of their scenes is playing.
 
 **Live ambience mixer**
 - Each scene is made of sound layers (crowds, rain, fire, music...) that you switch on and off and mix while it plays. Sounds fade in and out smoothly.

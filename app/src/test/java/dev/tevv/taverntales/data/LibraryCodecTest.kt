@@ -28,7 +28,7 @@ class LibraryCodecTest {
                         ),
                     ),
                 ),
-                SceneCollection(id = "c2", name = "Empty"),
+                SceneCollection(id = "c2", name = "Empty", collapsed = true),
             ),
             events = listOf(SoundEvent("e", "Boom", "content://boom", volume = 0.5f, icon = "explosion", color = "crimson")),
         )

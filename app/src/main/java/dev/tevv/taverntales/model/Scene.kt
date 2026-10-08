@@ -9,11 +9,13 @@ data class Library(
     val events: List<SoundEvent> = emptyList(),
 )
 
+/** A group of scenes. [collapsed] folds it down to its header on the Scenes screen. */
 @Serializable
 data class SceneCollection(
     val id: String,
     val name: String,
     val scenes: List<Scene> = emptyList(),
+    val collapsed: Boolean = false,
 )
 
 /**

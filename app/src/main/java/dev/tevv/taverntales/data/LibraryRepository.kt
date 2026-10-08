@@ -73,6 +73,9 @@ class LibraryRepository(private val dir: File, scope: CoroutineScope) {
     fun renameCollection(collectionId: String, name: String) =
         _library.update { lib -> lib.updateCollection(collectionId) { it.copy(name = name) } }
 
+    fun setCollapsed(collectionId: String, collapsed: Boolean) =
+        _library.update { lib -> lib.updateCollection(collectionId) { it.copy(collapsed = collapsed) } }
+
     fun deleteCollection(collectionId: String) =
         _library.update { lib -> lib.copy(collections = lib.collections.filterNot { it.id == collectionId }) }
 

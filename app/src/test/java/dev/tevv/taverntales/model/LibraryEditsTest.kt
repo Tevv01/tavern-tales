@@ -57,6 +57,13 @@ class LibraryEditsTest {
     }
 
     @Test
+    fun collectionsStartExpandedAndCollapseIndividually() {
+        assertEquals(listOf(false, false), library.collections.map { it.collapsed })
+        val result = library.updateCollection("b") { it.copy(collapsed = true) }
+        assertEquals(listOf(false, true), result.collections.map { it.collapsed })
+    }
+
+    @Test
     fun updateEvent_changesOnlyMatchingEvent() {
         val result = library.updateEvent("fire") { it.copy(color = "crimson") }
         assertEquals("crimson", result.events.single().color)
