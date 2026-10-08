@@ -57,7 +57,7 @@ The app only talks to the network for:
   - the phone model and Android version, plus technical details such as memory, storage, battery level, screen size, network type, and your language and time-zone settings;
   - a random ID created when the app was installed, which only lets crashes from the same install be counted together. It isn't linked to you.
 
-  No name, account, IP address, location, scenes, sounds, pictures or screenshots are included. Development (debug) builds never send reports.
+  No name, account, IP address, location, scenes, sounds, pictures or screenshots are included. After a report is sent, the app shows you the complete report, exactly as it was sent, so you can check (and copy) what was shared. Development (debug) builds never send reports.
 
 ## Planned
 
