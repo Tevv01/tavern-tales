@@ -27,6 +27,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Backup
+import androidx.compose.material.icons.filled.BugReport
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.CreateNewFolder
 import androidx.compose.material.icons.filled.Delete
@@ -98,6 +100,9 @@ fun HomeScreen(
     snackbar: SnackbarHostState,
     onOpenScene: (sceneId: String) -> Unit,
     onOpenHueSetup: () -> Unit,
+    /** Null when this build can't report crashes (debug builds): the menu item is hidden. */
+    crashReportsEnabled: Boolean?,
+    onCrashReportsChange: (Boolean) -> Unit,
 ) {
     val library by viewModel.library.collectAsStateWithLifecycle()
     val mixer by viewModel.mixerState.collectAsStateWithLifecycle()
@@ -147,6 +152,19 @@ fun HomeScreen(
                                     pickBackup.launch(arrayOf("application/zip", "application/octet-stream"))
                                 },
                             )
+                            if (crashReportsEnabled != null) {
+                                DropdownMenuItem(
+                                    text = { Text("Send crash reports") },
+                                    leadingIcon = { Icon(Icons.Default.BugReport, contentDescription = null) },
+                                    trailingIcon = {
+                                        if (crashReportsEnabled) Icon(Icons.Default.Check, contentDescription = "On")
+                                    },
+                                    onClick = {
+                                        menuOpen = false
+                                        onCrashReportsChange(!crashReportsEnabled)
+                                    },
+                                )
+                            }
                         }
                     }
                 },

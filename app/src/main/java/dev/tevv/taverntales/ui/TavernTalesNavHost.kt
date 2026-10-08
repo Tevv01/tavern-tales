@@ -9,7 +9,13 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.tevv.taverntales.AppContainer
+import dev.tevv.taverntales.CrashReporting
 import dev.tevv.taverntales.ui.home.HomeScreen
 import dev.tevv.taverntales.ui.home.HomeViewModel
 import dev.tevv.taverntales.ui.hue.HueSetupScreen
@@ -28,7 +34,7 @@ private data class SceneRoute(val sceneId: String)
 private object HueRoute
 
 @Composable
-fun TavernTalesNavHost(container: AppContainer) {
+fun TavernTalesNavHost(container: AppContainer, crashReporting: CrashReporting) {
     val navController = rememberNavController()
     // Shared so playback errors show up on whichever screen is visible.
     val snackbar = remember { SnackbarHostState() }
@@ -39,6 +45,11 @@ fun TavernTalesNavHost(container: AppContainer) {
         container.hue.messages.collect { snackbar.showSnackbar(it) }
     }
 
+    val crashReportsEnabled by crashReporting.enabled.collectAsStateWithLifecycle()
+    if (crashReporting.available && crashReportsEnabled == null) {
+        CrashReportingQuestion(onAnswer = crashReporting::setEnabled)
+    }
+
     NavHost(navController, startDestination = HomeRoute) {
         composable<HomeRoute> {
             HomeScreen(
@@ -46,6 +57,8 @@ fun TavernTalesNavHost(container: AppContainer) {
                 snackbar = snackbar,
                 onOpenScene = { navController.navigate(SceneRoute(it)) },
                 onOpenHueSetup = { navController.navigate(HueRoute) },
+                crashReportsEnabled = if (crashReporting.available) crashReportsEnabled == true else null,
+                onCrashReportsChange = crashReporting::setEnabled,
             )
         }
         composable<SceneRoute> { entry ->
@@ -64,4 +77,22 @@ fun TavernTalesNavHost(container: AppContainer) {
             )
         }
     }
+}
+
+/** Asked once, on first launch of a build that can report crashes. */
+@Composable
+private fun CrashReportingQuestion(onAnswer: (Boolean) -> Unit) {
+    AlertDialog(
+        onDismissRequest = {},
+        title = { Text("Send crash reports?") },
+        text = {
+            Text(
+                "If Tavern Tales crashes, it can send an anonymous report to help fix the problem: what went " +
+                    "wrong in the app, your phone model and Android version. Your scenes, sounds and lights are " +
+                    "never sent. You can change this any time in the ⋮ menu.",
+            )
+        },
+        confirmButton = { TextButton(onClick = { onAnswer(true) }) { Text("Send reports") } },
+        dismissButton = { TextButton(onClick = { onAnswer(false) }) { Text("No thanks") } },
+    )
 }

@@ -25,6 +25,15 @@
             </intent-filter>
         </activity>
 
+        <!-- Crash reporting is started by the app only after the user agrees (see CrashReporting).
+             The DSN is empty in debug builds, which turns reporting off entirely. -->
+        <meta-data
+            android:name="io.sentry.auto-init"
+            android:value="false" />
+        <meta-data
+            android:name="io.sentry.dsn"
+            android:value="${sentryDsn}" />
+
         <service
             android:name=".audio.AmbienceService"
             android:exported="false"
