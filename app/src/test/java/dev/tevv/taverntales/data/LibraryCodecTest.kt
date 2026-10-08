@@ -82,6 +82,21 @@ class LibraryCodecTest {
     }
 
     @Test
+    fun decode_version3AddsDefaultMotionKeepingUserColours() {
+        val v3 = """
+            { "version": 3, "events": [], "collections": [ { "id": "default", "name": "Essentials", "scenes": [
+              { "id": "default-cave", "name": "Cave", "lighting": { "slots": [ { "color": "#112233" } ], "brightness": 0.9 } },
+              { "id": "mine", "name": "Mine", "lighting": { "slots": [ { "color": "#112233" } ], "brightness": 0.9 } } ] } ] }
+        """.trimIndent()
+        val scenes = LibraryCodec.decode(v3).collections.single().scenes
+        val cave = scenes[0].lighting!!
+        assertEquals(DefaultLibrary.lighting.getValue("cave").motion, cave.motion)
+        assertEquals("#112233", cave.slots.single().color) // the user's edits survive
+        assertEquals(0.9f, cave.brightness)
+        assertEquals(0f, scenes[1].lighting!!.motion) // the user's own scenes stay still
+    }
+
+    @Test
     fun decode_emptyVersion1GivesJustTheDefaults() {
         assertEquals(DefaultLibrary.create(), LibraryCodec.decode("""{ "version": 1, "scenes": [] }"""))
     }

@@ -16,15 +16,15 @@ import kotlinx.serialization.json.jsonPrimitive
  * Reads and writes `library.json`.
  *
  * Versions: 1 = flat `scenes` list (first release); 2 = collections + events; 3 = built-in scenes
- * come with light setups. Older files are migrated on read. Bump [CURRENT_VERSION] and add a migration on breaking changes; adding a field
+ * come with light setups; 4 = light setups can move. Older files are migrated on read. Bump [CURRENT_VERSION] and add a migration on breaking changes; adding a field
  * with a default value needs neither.
  */
 object LibraryCodec {
-    const val CURRENT_VERSION = 3
+    const val CURRENT_VERSION = 4
 
     @Serializable
     private data class FileV2(
-        val version: Int = CURRENT_VERSION,  // same shape for v2 and v3
+        val version: Int = CURRENT_VERSION,  // same shape for v2 to v4
         val collections: List<SceneCollection> = emptyList(),
         val events: List<SoundEvent> = emptyList(),
     )
@@ -48,7 +48,8 @@ object LibraryCodec {
         val root = json.parseToJsonElement(text).jsonObject
         return when (val version = root["version"]?.jsonPrimitive?.int ?: 1) {
             1 -> migrateV1(json.decodeFromJsonElement<FileV1>(root))
-            2 -> addDefaultLighting(json.decodeFromJsonElement<FileV2>(root).let { Library(it.collections, it.events) })
+            2 -> addDefaultMotion(addDefaultLighting(json.decodeFromJsonElement<FileV2>(root).let { Library(it.collections, it.events) }))
+            3 -> addDefaultMotion(json.decodeFromJsonElement<FileV2>(root).let { Library(it.collections, it.events) })
             CURRENT_VERSION -> json.decodeFromJsonElement<FileV2>(root).let { Library(it.collections, it.events) }
             else -> error("Unsupported library version $version")
         }
@@ -61,6 +62,21 @@ object LibraryCodec {
                 val default = DefaultLibrary.lighting[scene.id.removePrefix("default-")]
                 if (scene.id.startsWith("default-") && default != null && scene.lighting == null && scene.lights == null) {
                     scene.copy(lighting = default)
+                } else {
+                    scene
+                }
+            })
+        },
+    )
+
+    /** v4 added movement; built-in scenes keep the user's colours and brightness but get the default movement. */
+    private fun addDefaultMotion(library: Library): Library = library.copy(
+        collections = library.collections.map { collection ->
+            collection.copy(scenes = collection.scenes.map { scene ->
+                val lighting = scene.lighting
+                val default = DefaultLibrary.lighting[scene.id.removePrefix("default-")]
+                if (scene.id.startsWith("default-") && default != null && lighting != null && lighting.motion == 0f) {
+                    scene.copy(lighting = lighting.copy(motion = default.motion))
                 } else {
                     scene
                 }

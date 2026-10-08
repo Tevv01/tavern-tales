@@ -139,8 +139,11 @@ class HueController(context: Context, private val scope: CoroutineScope) {
         api.recall(bridge.appKey, scene.id)
     }
 
-    /** Applies a light setup to the chosen room or zone in the background. */
-    fun apply(setup: LightSetup) = launchLightChange("Couldn't set the lights") { bridge, api ->
+    /**
+     * Applies a light setup to the chosen room or zone in the background. With [animate], the lights
+     * then keep drifting gently (see [LightSetup.motion]) until the next light change or [stopMotion].
+     */
+    fun apply(setup: LightSetup, animate: Boolean = false) = launchLightChange("Couldn't set the lights") { bridge, api ->
         val group = bridge.group ?: throw HueException("choose a room for scene lighting in the Hue settings")
         val members = api.groups(bridge.appKey).find { it.id == group.id }
             ?: throw HueException("the room \"${group.name}\" no longer exists; choose another in the Hue settings")
@@ -149,6 +152,49 @@ class HueController(context: Context, private val scope: CoroutineScope) {
         LightCommands.build(setup, lights).forEach { (lightId, body) ->
             api.setLight(bridge.appKey, lightId, body.toString())
             delay(LIGHT_COMMAND_GAP_MS)
+        }
+        if (animate && setup.motion > 0f && setup.brightness > 0f) animate(bridge, api, setup, lights)
+    }
+
+    /** Stops the drifting started by [apply]; the lights stay as they are. */
+    fun stopMotion() {
+        if (moving) lightJob?.cancel()
+    }
+
+    @Volatile private var moving = false
+
+    /**
+     * Nudges one light at a time, cycling through the room so each light gets a new target about once
+     * per [LightCommands.motionPeriodMs], fading to it over that same period. Runs until cancelled.
+     */
+    private suspend fun animate(bridge: HueBridge, api: HueApi, setup: LightSetup, lights: List<HueLight>) {
+        val ordered = LightCommands.ordered(lights)
+        val period = LightCommands.motionPeriodMs(setup.motion)
+        val step = (period / ordered.size).coerceAtLeast(MIN_MOTION_STEP_MS)
+        val random = kotlin.random.Random(System.nanoTime())
+        var failures = 0
+        moving = true
+        try {
+            delay(LIGHT_SETTLE_MS) // let the scene's own fade finish first
+            while (true) {
+                for ((index, light) in ordered.withIndex()) {
+                    LightCommands.motionStep(setup, light, index, random)?.let { body ->
+                        try {
+                            api.setLight(bridge.appKey, light.id, body.toString())
+                            failures = 0
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (e: Exception) {
+                            // A missed drift step isn't worth an error message; give up only if the bridge is gone.
+                            Log.w(TAG, "Light motion step failed", e)
+                            if (++failures >= 3) return
+                        }
+                    }
+                    delay(step)
+                }
+            }
+        } finally {
+            moving = false
         }
     }
 
@@ -224,5 +270,8 @@ class HueController(context: Context, private val scope: CoroutineScope) {
         const val TAG = "HueController"
         /** The bridge handles about 10 light commands per second; stay under that. */
         const val LIGHT_COMMAND_GAP_MS = 110L
+        /** Drift steps are much rarer still, so other apps and switches stay responsive. */
+        const val MIN_MOTION_STEP_MS = 700L
+        const val LIGHT_SETTLE_MS = 1500L
     }
 }

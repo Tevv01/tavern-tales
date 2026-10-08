@@ -28,5 +28,5 @@ class AppContainer(context: Context) {
     val backgrounds = BackgroundStore(context)
     val mixer = AmbienceMixer(context, appScope)
     val hue = HueController(context, appScope)
-    val launcher = SceneLauncher(mixer, hue)
+    val launcher = SceneLauncher(mixer, hue, appScope)
 }

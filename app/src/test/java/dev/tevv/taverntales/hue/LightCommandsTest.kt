@@ -63,6 +63,34 @@ class LightCommandsTest {
     }
 
     @Test
+    fun motionStepStaysNearTheSetupAndSkipsEffectLights() {
+        val setup = LightSetup(listOf(LightSlot("#FF0000", "candle"), LightSlot("#0000FF")), brightness = 0.5f, motion = 1f)
+        val random = kotlin.random.Random(42)
+        // Light 0 runs the candle effect: left alone.
+        assertNull(LightCommands.motionStep(setup, colorBulb, 0, random))
+        val red = LightMath.hexToXy("#FF0000")
+        val blue = LightMath.hexToXy("#0000FF")
+        repeat(200) {
+            val body = LightCommands.motionStep(setup, oldColorBulb, 1, random)!!
+            val brightness = body["dimming"]!!.jsonObject["brightness"]!!.jsonPrimitive.double
+            assertTrue(brightness in 35.0..65.0) // +-30 % around 50 at full motion
+            val (x, _) = body.xy()
+            // Slot 2 (blue) leans at most 40 % of the way toward the next slot (red).
+            assertTrue(x >= blue.x - 1e-9 && x <= blue.x + (red.x - blue.x) * 0.4 + 1e-9)
+            assertEquals(LightCommands.motionPeriodMs(1f).toInt(), body["dynamics"]!!.jsonObject["duration"]!!.jsonPrimitive.int)
+        }
+    }
+
+    @Test
+    fun noMotionWhenStillOrOff() {
+        assertNull(LightCommands.motionStep(LightSetup(listOf(LightSlot("#FF0000")), 0.5f, motion = 0f), oldColorBulb, 0, kotlin.random.Random(1)))
+        assertNull(LightCommands.motionStep(LightSetup(listOf(LightSlot("#FF0000")), 0f, motion = 1f), oldColorBulb, 0, kotlin.random.Random(1)))
+        // White-only bulbs only drift in brightness.
+        val white = LightCommands.motionStep(LightSetup(listOf(LightSlot("#FF0000"), LightSlot("#00FF00")), 0.5f, 0.5f), whiteAmbiance, 0, kotlin.random.Random(1))!!
+        assertNull(white["color"])
+    }
+
+    @Test
     fun bodiesAreValidJson() {
         val body = LightCommands.build(LightSetup(), listOf(colorBulb)).single().second
         assertEquals(body, Json.parseToJsonElement(body.toString()))

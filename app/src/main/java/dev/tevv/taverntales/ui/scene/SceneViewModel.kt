@@ -134,7 +134,7 @@ class SceneViewModel(
     init {
         viewModelScope.launch {
             lightPreview.conflate().collect {
-                hue.apply(it)
+                launcher.previewLighting(sceneId, it)
                 delay(LIGHT_PREVIEW_INTERVAL_MS)
             }
         }

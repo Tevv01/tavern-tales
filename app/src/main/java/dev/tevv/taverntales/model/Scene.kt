@@ -39,12 +39,14 @@ data class Scene(
 /**
  * Lighting made in this app, applied to the room or zone chosen in the Hue settings. The [slots]
  * are spread over that room's lights in turn (light 1 gets slot 1, ...). [brightness] is 0..1, and 0
- * turns the lights off.
+ * turns the lights off. [motion] (0..1) is how much the lights slowly drift in brightness and colour
+ * while the scene plays; 0 keeps them still.
  */
 @Serializable
 data class LightSetup(
     val slots: List<LightSlot> = listOf(LightSlot("#FFC27A")),
     val brightness: Float = 0.6f,
+    val motion: Float = 0f,
 )
 
 /**

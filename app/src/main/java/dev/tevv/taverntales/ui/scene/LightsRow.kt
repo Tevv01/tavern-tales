@@ -247,6 +247,14 @@ private fun LightSetupEditor(
     Text("Brightness: " + if (setup.brightness <= 0f) "off" else "${(setup.brightness * 100).roundToInt()}%", style = MaterialTheme.typography.labelLarge)
     Slider(value = setup.brightness, onValueChange = { onChange(setup.copy(brightness = it)) })
 
+    Text("Movement: " + motionLabel(setup.motion), style = MaterialTheme.typography.labelLarge)
+    Text(
+        "Slow drifts in brightness and colour while the scene plays. Lights with a flicker effect keep their own.",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    Slider(value = setup.motion, onValueChange = { onChange(setup.copy(motion = it)) })
+
     if (room != null) {
         Text(
             "Changes show on your lights as you make them.",
@@ -403,6 +411,13 @@ private fun Swatch(hex: String, sizeDp: Int) {
             .background(Color(parseColor(hex)))
             .border(1.dp, Color.White.copy(alpha = 0.25f), CircleShape),
     )
+}
+
+private fun motionLabel(motion: Float) = when {
+    motion <= 0f -> "still"
+    motion < 0.3f -> "subtle"
+    motion < 0.65f -> "gentle"
+    else -> "lively"
 }
 
 private fun parseColor(hex: String): Int = runCatching { AndroidColor.parseColor(hex) }.getOrDefault(AndroidColor.WHITE)
