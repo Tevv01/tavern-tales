@@ -93,3 +93,17 @@ The user's phone has two installs side by side: **Tavern Tales** (`dev.tevv.tave
    - Commit "Release X.Y.Z", tag `vX.Y.Z` (annotated), push both, and publish a GitHub release (`gh release create`) with notes for users and the APK attached as `tavern-tales-X.Y.Z.apk`.
 
 Before anything over adb that could affect the real app's data, the user makes a backup from the app. Restore the phone's media volume and settings after tests that change them.
+
+## Agent skills
+
+### Issue tracker
+
+Issues and specs live in GitHub Issues for `Tevv01/tavern-tales`, used through the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+The five default roles with the same label names: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: one `GLOSSARY.md` and `docs/adr/` at the repo root, created when terms or decisions get settled. See `docs/agents/domain.md`.
